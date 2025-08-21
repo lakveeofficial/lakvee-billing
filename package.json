@@ -1,0 +1,48 @@
+{
+  "name": "billing-portal-v1",
+  "version": "1.0.0",
+  "description": "Logistic & Courier Billing Application",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:init": "ts-node --require dotenv/config scripts/init-db.ts"
+  },
+  "dependencies": {
+    "autoprefixer": "^10.4.19",
+    "bcryptjs": "^2.4.3",
+    "date-fns": "^3.6.0",
+    "dotenv": "^16.4.5",
+    "jsonwebtoken": "^9.0.2",
+    "jspdf": "^3.0.1",
+    "jwt-decode": "^4.0.0",
+    "lucide-react": "^0.408.0",
+    "next": "^14.2.31",
+    "papaparse": "^5.5.3",
+    "pg": "^8.11.3",
+    "postcss": "^8.4.39",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hook-form": "^7.52.1",
+    "react-icons": "^5.2.1",
+    "recharts": "^2.12.7",
+    "tailwind-merge": "^3.3.1",
+    "tailwindcss": "^3.4.6",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^20.14.11",
+    "@types/papaparse": "^5.3.16",
+    "@types/pg": "^8.10.9",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "14.2.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
+  }
+}
