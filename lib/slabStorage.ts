@@ -39,10 +39,10 @@ export class SlabStorage {
     return this.getAll().filter(s => s.slabType === type)
   }
 
-  static importFromCSV(rows: any[]): { imported: RateSlab[], errors: any[] } {
+  static importFromCSV(rows: any[]): { imported: RateSlab[]; errors: { row: number; error: string }[] } {
     // rows: array of objects from parsed CSV
     const imported: RateSlab[] = []
-    const errors: any[] = []
+    const errors: { row: number; error: string }[] = []
     rows.forEach((row, idx) => {
       try {
         const slab: RateSlab = {
@@ -59,7 +59,8 @@ export class SlabStorage {
         }
         imported.push(slab)
       } catch (e) {
-        errors.push({ row: idx + 1, error: e.message })
+        const message = e instanceof Error ? e.message : String(e)
+        errors.push({ row: idx + 1, error: message })
       }
     })
     if (imported.length > 0) {

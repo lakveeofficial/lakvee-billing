@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, ChangeEvent } from 'react';
-import { Button } from './ui/button';
 import { Loader2, Download, Upload } from 'lucide-react';
 
 export default function CSVUploader() {
@@ -108,15 +107,14 @@ export default function CSVUploader() {
       </div>
 
       <div className="space-y-4">
-        <Button
+        <button
           onClick={downloadTemplate}
-          variant="outline"
           disabled={isUploading}
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
         >
           <Download className="h-4 w-4" />
           Download CSV Template
-        </Button>
+        </button>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -150,10 +148,10 @@ export default function CSVUploader() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button 
+            <button 
               type="submit" 
               disabled={!file || isUploading}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
             >
               {isUploading ? (
                 <>
@@ -166,7 +164,7 @@ export default function CSVUploader() {
                   Upload File
                 </>
               )}
-            </Button>
+            </button>
           </div>
         </form>
 
