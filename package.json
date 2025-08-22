@@ -5,10 +5,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && tsc --project tsconfig.json --noEmit",
     "start": "next start",
     "lint": "next lint",
-    "db:init": "ts-node --require dotenv/config scripts/init-db.ts"
+    "lint:fix": "next lint --fix",
+    "type-check": "tsc --project tsconfig.json --noEmit",
+    "db:init": "ts-node --require dotenv/config scripts/init-db.ts",
+    "postinstall": "next telemetry disable"
   },
   "dependencies": {
     "autoprefixer": "^10.4.19",
