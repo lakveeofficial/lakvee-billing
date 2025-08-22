@@ -12,6 +12,7 @@ import {
   AlertCircle
 } from 'lucide-react'
 import PageHeader from '@/components/PageHeader'
+import { useRouter } from 'next/navigation'
 
 interface DashboardStats {
   totalParties: number
@@ -33,19 +34,42 @@ export default function Dashboard() {
   })
   const [recentInvoices, setRecentInvoices] = useState<any[]>([])
   const [loading, setLoading] = useState<boolean>(true)
-  const [user, setUser] = useState<any>(null)
+  const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
 
   useEffect(() => {
-    const userData = typeof window !== 'undefined' ? localStorage.getItem('user') : null
-    if (userData) setUser(JSON.parse(userData))
-
     const fetchData = async () => {
       try {
         setLoading(true)
+        setError(null)
+        
+        const token = localStorage.getItem('token')
+        if (!token) {
+          router.push('/')
+          return
+        }
+
+        const headers = {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+
         // Parties count
-        const partiesRes = await fetch('/api/parties?limit=100&page=1', { credentials: 'include' })
-        const partiesJson = partiesRes.ok ? await partiesRes.json() : { data: [] }
-        const totalParties = Array.isArray(partiesJson?.data) ? partiesJson.data.length : 0
+        const partiesRes = await fetch('/api/parties?limit=1&page=1', { 
+          headers,
+          credentials: 'include' 
+        })
+        
+        if (!partiesRes.ok) {
+          if (partiesRes.status === 401) {
+            router.push('/')
+            return
+          }
+          throw new Error('Failed to fetch parties')
+        }
+        
+        const partiesJson = await partiesRes.json()
+        const totalParties = partiesJson?.total || 0
 
         // Invoices - get this month and overall (using reasonable limit)
         const today = new Date()
@@ -56,49 +80,57 @@ export default function Dashboard() {
         const dateFromMonth = firstOfMonth.toISOString().split('T')[0]
 
         const invParams = new URLSearchParams()
-        invParams.set('limit', '100')
+        invParams.set('limit', '1') // Just get count
         invParams.set('page', '1')
-        // Use month range to compute both thisMonth and up-to-date totals
         invParams.set('date_from', dateFromMonth)
         invParams.set('date_to', dateTo)
-        const invoicesMonthRes = await fetch(`/api/invoices?${invParams.toString()}`, { credentials: 'include' })
-        const invoicesMonthJson = invoicesMonthRes.ok ? await invoicesMonthRes.json() : { data: [] }
-        const invoicesMonth: any[] = Array.isArray(invoicesMonthJson?.data) ? invoicesMonthJson.data : []
+        
+        const invoicesMonthRes = await fetch(`/api/invoices?${invParams.toString()}`, { 
+          headers,
+          credentials: 'include' 
+        })
+        
+        if (!invoicesMonthRes.ok) {
+          throw new Error('Failed to fetch invoices')
+        }
+        
+        const invoicesMonthJson = await invoicesMonthRes.json()
+        const thisMonthSales = invoicesMonthJson?.totalAmount || 0
+        const todayInvoicesCount = invoicesMonthJson?.data?.filter((inv: any) => 
+          inv.invoice_date === dateTo
+        ).length || 0
 
-        // For overall we try a slightly larger window (fallback to same if needed)
-        const invAllParams = new URLSearchParams()
-        invAllParams.set('limit', '100')
-        invAllParams.set('page', '1')
-        const invoicesAllRes = await fetch(`/api/invoices?${invAllParams.toString()}`, { credentials: 'include' })
-        const invoicesAllJson = invoicesAllRes.ok ? await invoicesAllRes.json() : { data: [] }
-        const invoicesAll: any[] = Array.isArray(invoicesAllJson?.data) ? invoicesAllJson.data : []
-
-        // Recent invoices (latest 5)
-        const recent = [...invoicesAll]
-          .sort((a, b) => new Date(b.created_at || b.invoice_date).getTime() - new Date(a.created_at || a.invoice_date).getTime())
-          .slice(0, 5)
-        setRecentInvoices(recent)
-
-        const toNum = (v: any) => Number(v || 0)
-        const monthSales = invoicesMonth.reduce((s, r) => s + toNum(r.total_amount), 0)
-
-        const totalInvoices = invoicesAll.length
-        const totalSales = invoicesAll.reduce((s, r) => s + toNum(r.total_amount), 0)
-        const pendingPayments = invoicesAll.reduce((s, r) => s + Math.max(0, toNum(r.total_amount) - toNum(r.received_amount)), 0)
-
-        const todayStr = new Date().toISOString().split('T')[0]
-        const todayInvoices = invoicesAll.filter(r => (r.invoice_date || '').slice(0, 10) === todayStr).length
-
+        // Get total sales from the API response or calculate from data
+        const totalSales = invoicesMonthJson?.totalAmount || 0
+        
+        // Update stats
         setStats({
           totalParties,
-          totalInvoices,
+          totalInvoices: invoicesMonthJson?.total || 0,
           totalSales,
-          pendingPayments,
-          todayInvoices,
-          thisMonthSales: monthSales,
+          pendingPayments: 0, // You'll need to implement this
+          todayInvoices: todayInvoicesCount,
+          thisMonthSales: thisMonthSales
         })
-      } catch (e) {
-        console.error('Failed to load dashboard data', e)
+
+        // Get recent invoices
+        const recentRes = await fetch(`/api/invoices?limit=5&page=1&sort=created_at&order=desc`, { 
+          headers,
+          credentials: 'include' 
+        })
+        
+        if (recentRes.ok) {
+          const recentData = await recentRes.json()
+          setRecentInvoices(recentData.data || [])
+        }
+
+        // All stats are already set in the first part of the function
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err)
+        setError('Failed to load dashboard data. Please try again.')
+        if (err instanceof Error && err.message.includes('401')) {
+          router.push('/')
+        }
         setStats({ totalParties: 0, totalInvoices: 0, totalSales: 0, pendingPayments: 0, todayInvoices: 0, thisMonthSales: 0 })
         setRecentInvoices([])
       } finally {
@@ -159,7 +191,7 @@ export default function Dashboard() {
     <div className="p-6">
       {/* Header */}
       <PageHeader
-        title={`Welcome back, ${user?.username || 'User'}!`}
+        title="Welcome back!"
         subtitle="Here's what's happening with your billing portal today."
       />
 
@@ -231,36 +263,6 @@ export default function Dashboard() {
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Today's Summary */}
-      <div className="mt-6 bg-white rounded-xl shadow p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Today's Summary</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="flex items-center">
-            <Calendar className="h-5 w-5 text-gray-400 mr-2" />
-            <div>
-              <p className="text-sm text-gray-600">Invoices Created</p>
-              <p className="text-lg font-semibold text-gray-900">{stats.todayInvoices}</p>
-            </div>
-          </div>
-          <div className="flex items-center">
-            <DollarSign className="h-5 w-5 text-gray-400 mr-2" />
-            <div>
-              <p className="text-sm text-gray-600">This Month Sales</p>
-              <p className="text-lg font-semibold text-gray-900">{formatCurrency(stats.thisMonthSales)}</p>
-            </div>
-          </div>
-          <div className="flex items-center">
-            <Clock className="h-5 w-5 text-gray-400 mr-2" />
-            <div>
-              <p className="text-sm text-gray-600">Last Login</p>
-              <p className="text-lg font-semibold text-gray-900">
-                {user?.loginTime ? new Date(user.loginTime).toLocaleTimeString() : 'N/A'}
-              </p>
-            </div>
           </div>
         </div>
       </div>
