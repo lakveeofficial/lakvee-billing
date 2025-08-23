@@ -55,7 +55,24 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
+      {/* Background image */}
+      <div className="absolute inset-0 -z-10">
+        <Image
+          src="/bg-logistics.jpg"
+          alt="Logistics and courier background"
+          fill
+          priority
+          className="object-cover"
+          sizes="100vw"
+        />
+        {/* Tint + subtle blur overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-sky-900/50 via-indigo-900/40 to-emerald-900/40 backdrop-blur-sm" />
+        {/* Decorative gradient blobs */}
+        <div className="pointer-events-none absolute -top-24 -right-24 h-96 w-96 bg-gradient-to-br from-indigo-500/30 to-sky-400/20 rounded-full blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 -left-24 h-[28rem] w-[28rem] bg-gradient-to-tr from-emerald-400/20 to-cyan-400/30 rounded-full blur-3xl" />
+      </div>
+
       <div className="max-w-md w-full space-y-8">
         {/* Logo and Header */}
         <div className="text-center">
@@ -69,17 +86,17 @@ export default function LoginPage() {
               sizes="80px"
             />
           </div>
-          <h2 className={`text-3xl font-bold text-gray-900 ${brandFont.className}`}>Billing Portal</h2>
-          <p className="mt-2 text-sm text-gray-600">
+          <h2 className={`text-3xl font-bold text-white drop-shadow-sm ${brandFont.className}`}>Billing Portal</h2>
+          <p className="mt-2 text-sm font-medium text-white/90 drop-shadow-sm">
             Logistic & Courier Management System
           </p>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-white/70 mt-1">
             LakVee Softwares & Solutions
           </p>
         </div>
 
         {/* Login Form */}
-        <div className="bg-white rounded-lg shadow-xl p-8">
+        <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl p-8 ring-1 ring-black/10">
           <form className="space-y-6" onSubmit={handleSubmit}>
             {/* Username Field */}
             <div>
@@ -97,7 +114,7 @@ export default function LoginPage() {
                   required
                   value={formData.username}
                   onChange={handleInputChange}
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-white/90 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   placeholder="Enter your username"
                 />
               </div>
@@ -119,7 +136,7 @@ export default function LoginPage() {
                   required
                   value={formData.password}
                   onChange={handleInputChange}
-                  className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg leading-5 bg-white/90 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   placeholder="Enter your password"
                 />
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
@@ -152,7 +169,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                className="group relative w-full flex justify-center py-3 px-4 text-sm font-semibold rounded-lg text-white bg-gradient-to-r from-primary-600 to-primary-700 shadow-lg hover:from-primary-700 hover:to-primary-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
               >
                 {isLoading ? (
                   <div className="flex items-center">
@@ -165,18 +182,10 @@ export default function LoginPage() {
               </button>
             </div>
           </form>
-
-          {/* Demo Credentials */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-md">
-            <p className="text-xs text-gray-600 font-medium mb-2">Demo Credentials:</p>
-            <div className="text-xs text-gray-500 space-y-1">
-              <p><strong>Admin:</strong> admin / admin123</p>
-            </div>
-          </div>
         </div>
 
         {/* Footer */}
-        <div className="text-center text-xs text-gray-500">
+        <div className="text-center text-xs text-white/90 drop-shadow-sm">
           <p>&copy; 2025 LakVee Softwares. All rights reserved.</p>
           <p className="mt-1">Version 1.0</p>
         </div>
