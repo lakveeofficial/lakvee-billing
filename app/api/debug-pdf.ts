@@ -28,7 +28,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
       debugInfo.error = 'No active company found';
       return NextResponse.json(debugInfo, { status: 500 });
     }
-    debugInfo.company = company.name || company.business_name;
+    debugInfo.company = company.business_name;
 
     // 3. Try to create PDF
     debugInfo.step = 'Creating PDF';
