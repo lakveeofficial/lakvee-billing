@@ -92,9 +92,9 @@ export async function POST(request: NextRequest) {
 
         const invRes = await client.query(
           `INSERT INTO invoices (
-            invoice_number, party_id, invoice_date, due_date, subtotal, tax_amount, additional_charges, received_amount, total_amount, notes, created_by,
+            invoice_number, party_id, invoice_date, subtotal, tax_amount, additional_charges, received_amount, total_amount, notes, created_by,
             apply_slab, slab_amount, slab_breakdown
-          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
           RETURNING id`,
           [
             invoiceNumber,
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
         // Insert items
         for (const it of items) {
           await client.query(
-            `INSERT INTO invoice_items (invoice_id, item_description, quantity, unit_price, total_price, booking_date)
+            `INSERT INTO invoice_items (invoice_id, item_description, quantity, rate, amount, booking_date)
              VALUES ($1,$2,$3,$4,$5,$6)`,
             [invoiceId, it.description, it.quantity, it.unit_price, it.total_price, it.booking_date]
           )

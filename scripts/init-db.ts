@@ -176,14 +176,20 @@ async function initializeDatabase() {
         gst_number VARCHAR(15),
         gst_type VARCHAR(20) DEFAULT 'unregistered',
         pan_number VARCHAR(10),
+        shipping_address TEXT,
+        shipping_city VARCHAR(100),
+        shipping_state VARCHAR(100),
+        shipping_pincode VARCHAR(10),
+        shipping_phone VARCHAR(20),
+        use_same_address BOOLEAN DEFAULT TRUE,
         created_by INTEGER REFERENCES users(id),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    // Ensure GST type and slab assignment columns exist on parties
-    console.log('Ensuring slab assignment columns on parties...');
+    // Ensure GST type, slab assignment, and shipping address columns exist on parties
+    console.log('Ensuring all columns on parties table...');
     await client.query(`
       ALTER TABLE parties
       ADD COLUMN IF NOT EXISTS gst_type VARCHAR(20) DEFAULT 'unregistered',
@@ -191,7 +197,13 @@ async function initializeDatabase() {
       ADD COLUMN IF NOT EXISTS distance_slab_id INTEGER,
       ADD COLUMN IF NOT EXISTS distance_category VARCHAR(50),
       ADD COLUMN IF NOT EXISTS volume_slab_id INTEGER,
-      ADD COLUMN IF NOT EXISTS cod_slab_id INTEGER
+      ADD COLUMN IF NOT EXISTS cod_slab_id INTEGER,
+      ADD COLUMN IF NOT EXISTS shipping_address TEXT,
+      ADD COLUMN IF NOT EXISTS shipping_city VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS shipping_state VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS shipping_pincode VARCHAR(10),
+      ADD COLUMN IF NOT EXISTS shipping_phone VARCHAR(20),
+      ADD COLUMN IF NOT EXISTS use_same_address BOOLEAN DEFAULT TRUE
     `);
 
     // Ensure CHECK constraint on gst_type allowed values
@@ -249,7 +261,6 @@ async function initializeDatabase() {
         invoice_number VARCHAR(50) UNIQUE NOT NULL,
         party_id INTEGER REFERENCES parties(id) ON DELETE CASCADE,
         invoice_date DATE NOT NULL,
-        due_date DATE,
         subtotal DECIMAL(12,2) DEFAULT 0,
         tax_amount DECIMAL(12,2) DEFAULT 0,
         additional_charges DECIMAL(12,2) DEFAULT 0,

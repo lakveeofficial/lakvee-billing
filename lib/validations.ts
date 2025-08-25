@@ -56,7 +56,6 @@ export const invoiceItemSchema = z.object({
 export const createInvoiceSchema = z.object({
   party_id: z.number().min(1, 'Party is required'),
   invoice_date: z.string().refine((date) => !isNaN(Date.parse(date)), 'Invalid date format'),
-  due_date: z.string().refine((date) => !isNaN(Date.parse(date)), 'Invalid date format').optional(),
   items: z.array(invoiceItemSchema).min(1, 'At least one item is required'),
   additional_charges: z.number().min(0).default(0),
   tax_amount: z.number().min(0).default(0),

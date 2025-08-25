@@ -646,33 +646,75 @@ function drawTemplate(doc: jsPDF, tpl: string, company: any, row: any) {
 }
 
 export async function GET(request: Request, { params }: { params: { id: string } }) {
-  const { searchParams } = new URL(request.url)
-  const template = searchParams.get('template') || 'default'
-
-  const row = await getCsvInvoiceById(params.id)
-  if (!row) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-
-  const company = await getAnyActiveCompany()
-  // Normalize company logo/signature into data URLs if provided as URLs
   try {
-    const origin = new URL(request.url).origin
-    const logoData = await toDataUrlIfNeeded((company as any)?.logo, origin)
-    if (logoData) (company as any).logo = logoData
-    const sigData = await toDataUrlIfNeeded((company as any)?.signature, origin)
-    if (sigData) (company as any).signature = sigData
-  } catch {}
-  const doc = new jsPDF({ unit: 'pt', format: 'a4' })
-  drawTemplate(doc, template, company, row)
-  const pdfBytes = doc.output('arraybuffer') as ArrayBuffer
+    console.log(`Generating PDF for invoice ${params.id}`);
+    const { searchParams } = new URL(request.url);
+    const template = searchParams.get('template') || 'default';
 
-  return new NextResponse(Buffer.from(pdfBytes), {
-    status: 200,
-    headers: {
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `inline; filename="csv-invoice-${params.id}.pdf"`,
-      'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-      Pragma: 'no-cache',
-      Expires: '0'
+    console.log('Fetching invoice data...');
+    const row = await getCsvInvoiceById(params.id);
+    if (!row) {
+      console.error('Invoice not found:', params.id);
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
-  })
+
+    console.log('Fetching company data...');
+    const company = await getAnyActiveCompany();
+    if (!company) {
+      console.error('No active company found');
+      return NextResponse.json({ error: 'No active company configured' }, { status: 500 });
+    }
+
+    // Normalize company logo/signature into data URLs if provided as URLs
+    try {
+      console.log('Processing company assets...');
+      const origin = new URL(request.url).origin;
+      const logoData = await toDataUrlIfNeeded((company as any)?.logo, origin);
+      if (logoData) (company as any).logo = logoData;
+      const sigData = await toDataUrlIfNeeded((company as any)?.signature, origin);
+      if (sigData) (company as any).signature = sigData;
+    } catch (error) {
+      console.error('Error processing company assets:', error);
+      // Continue even if there's an error with assets
+    }
+
+    console.log('Creating PDF document...');
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    
+    try {
+      console.log('Drawing template:', template);
+      drawTemplate(doc, template, company, row);
+    } catch (templateError) {
+      console.error('Error in drawTemplate:', templateError);
+      // Create a simple error PDF
+      doc.setFont('helvetica');
+      doc.setFontSize(12);
+      doc.text('Error generating PDF', 50, 50);
+      doc.text('Details have been logged.', 50, 70);
+    }
+
+    console.log('Generating PDF bytes...');
+    const pdfBytes = doc.output('arraybuffer') as ArrayBuffer;
+
+    return new NextResponse(Buffer.from(pdfBytes), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `inline; filename="csv-invoice-${params.id}.pdf"`,
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
+  } catch (error) {
+    console.error('PDF generation failed:', error);
+    return NextResponse.json(
+      { 
+        error: 'Failed to generate PDF', 
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: process.env.NODE_ENV === 'development' ? (error as Error).stack : undefined
+      },
+      { status: 500 }
+    );
+  }
 }

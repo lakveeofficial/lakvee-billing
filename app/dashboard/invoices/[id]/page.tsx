@@ -77,7 +77,6 @@ export default function InvoiceDetailsPage() {
         id: String(row.id),
         invoiceNumber: row.invoice_number || `INV-${row.id}`,
         invoiceDate: row.invoice_date,
-        dueDate: row.due_date || undefined,
         customer: {
           id: String(row.party_id || ''),
           partyName: row.party_name || 'Unknown',

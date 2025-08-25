@@ -93,7 +93,6 @@ export default function ReportsPage() {
         id: row.id,
         invoice_number: row.invoice_number,
         invoice_date: row.invoice_date,
-        due_date: row.due_date,
         party_name: row.party_name,
         party_phone: row.party_phone ?? row.phone ?? '',
         total_amount: Number(row.total_amount || 0),
@@ -112,8 +111,8 @@ export default function ReportsPage() {
           receivedAmount: inv.received_amount,
           balance: inv.total_amount - inv.received_amount,
           paymentType: 'N/A',
-          status: computePaymentStatus({ total: inv.total_amount, received: inv.received_amount, dueDate: inv.due_date, backend: inv.payment_status }),
-          paymentStatus: computePaymentStatus({ total: inv.total_amount, received: inv.received_amount, dueDate: inv.due_date, backend: inv.payment_status }),
+          status: computePaymentStatus({ total: inv.total_amount, received: inv.received_amount, backend: inv.payment_status }),
+          paymentStatus: computePaymentStatus({ total: inv.total_amount, received: inv.received_amount, backend: inv.payment_status }),
         }))
         const matchesStatus = (st: string) => {
           const f = (filters.statusFilter || 'all')
@@ -395,10 +394,9 @@ export default function ReportsPage() {
   }
 
   // Standardized payment status computation for invoices
-  const computePaymentStatus = (opts: { total: number, received: number, dueDate?: string | null, backend?: string | null }) => {
+  const computePaymentStatus = (opts: { total: number, received: number, backend?: string | null }) => {
     const total = Number(opts.total || 0)
     const received = Number(opts.received || 0)
-    const dueDateStr = opts.dueDate || undefined
     const backend = (opts.backend || '').toLowerCase()
     const outstanding = Math.max(0, total - received)
     const epsilon = 0.01
@@ -409,25 +407,9 @@ export default function ReportsPage() {
     }
 
     if (Math.abs(outstanding) <= epsilon || received >= total - epsilon) return 'Paid'
-    if (received > 0 && received < total - epsilon) {
-      // Check overdue for partially paid
-      if (dueDateStr) {
-        const due = new Date(dueDateStr)
-        const today = new Date()
-        if (!isNaN(due.getTime()) && due < new Date(today.getFullYear(), today.getMonth(), today.getDate())) {
-          return 'Overdue (Partially Paid)'
-        }
-      }
-      return 'Partially Paid'
-    }
-    // received === 0
-    if (dueDateStr) {
-      const due = new Date(dueDateStr)
-      const today = new Date()
-      if (!isNaN(due.getTime()) && due < new Date(today.getFullYear(), today.getMonth(), today.getDate())) {
-        return 'Overdue'
-      }
-    }
+    if (received <= epsilon) return 'Unpaid'
+    if (received < total - epsilon) return 'Partially Paid'
+    
     return 'Unpaid'
   }
 

@@ -187,7 +187,6 @@ export async function POST(request: Request) {
       const invoice_number = buildInvoiceNumber()
       const today = new Date()
       const invoice_date = today.toISOString().slice(0, 10)
-      const due_date = undefined
 
       const slab_breakdown = {
         shipment_type: shipmentType,
@@ -211,13 +210,12 @@ export async function POST(request: Request) {
       let invIns
       if (hasSlabBreakdown) {
         invIns = await runner.query(
-          `INSERT INTO invoices (invoice_number, party_id, invoice_date, due_date, subtotal, tax_amount, total_amount, notes, slab_breakdown)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb) RETURNING id`,
+          `INSERT INTO invoices (invoice_number, party_id, invoice_date, subtotal, tax_amount, total_amount, notes, slab_breakdown)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb) RETURNING id`,
           [
             invoice_number,
             partyId,
             invoice_date,
-            due_date ?? null,
             subtotalSum,
             gstSum,
             totalSum,
@@ -227,13 +225,12 @@ export async function POST(request: Request) {
         )
       } else {
         invIns = await runner.query(
-          `INSERT INTO invoices (invoice_number, party_id, invoice_date, due_date, subtotal, tax_amount, total_amount, notes)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
+          `INSERT INTO invoices (invoice_number, party_id, invoice_date, subtotal, tax_amount, total_amount, notes)
+           VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
           [
             invoice_number,
             partyId,
             invoice_date,
-            due_date ?? null,
             subtotalSum,
             gstSum,
             totalSum,
@@ -252,13 +249,13 @@ export async function POST(request: Request) {
       for (const l of lines) {
         if (hasBookingDate) {
           await runner.query(
-            `INSERT INTO invoice_items (invoice_id, item_description, quantity, unit_price, total_price, booking_date)
+            `INSERT INTO invoice_items (invoice_id, item_description, quantity, rate, amount, booking_date)
              VALUES ($1,$2,$3,$4,$5,$6)`,
             [invoiceId, l.description, 1, l.unit_price, l.total_price, l.booking_date]
           )
         } else {
           await runner.query(
-            `INSERT INTO invoice_items (invoice_id, item_description, quantity, unit_price, total_price)
+            `INSERT INTO invoice_items (invoice_id, item_description, quantity, rate, amount)
              VALUES ($1,$2,$3,$4,$5)`,
             [invoiceId, l.description, 1, l.unit_price, l.total_price]
           )

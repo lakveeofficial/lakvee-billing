@@ -142,31 +142,23 @@ export async function POST(request: NextRequest) {
 
     const invoiceResult = await client.query(`
         INSERT INTO invoices (
-          invoice_number, party_id, invoice_date, due_date, subtotal, tax_amount, additional_charges, received_amount, total_amount, notes, created_by,
+          invoice_number, party_id, invoice_date, subtotal, tax_amount, additional_charges, received_amount, total_amount, notes, created_by,
           apply_slab, slab_amount, slab_breakdown,
           recipient_name, recipient_phone, recipient_address, gst_invoice,
           prepaid_amount, final_collected, retail_price, chargeable_weight,
           booking_ref
-        )
-        VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
-          $12, $13, $14,
-          $15, $16, $17, $18,
-          $19, $20, $21, $22,
-          $23
-        )
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15,$16,$17,$18,$19,$20,$21)
         RETURNING *
-    `, [
+      `, [
         invoiceNumber,
         invoiceData.party_id,
         invoiceData.invoice_date,
-        invoiceData.due_date,
         subtotal,
         invoiceData.tax_amount,
         invoiceData.additional_charges,
-        invoiceData.received_amount ?? 0,
+        invoiceData.received_amount || 0,
         total_amount,
-        invoiceData.notes,
+        invoiceData.notes || null,
         user.id,
         invoiceData.apply_slab ?? false,
         invoiceData.slab_amount ?? 0,

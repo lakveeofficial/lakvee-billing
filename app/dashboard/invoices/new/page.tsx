@@ -805,7 +805,6 @@ export default function NewInvoicePage() {
       const payload = {
         party_id: Number(selectedParty.id),
         invoice_date: invoiceDate,
-        due_date: data.items[0]?.invoiceDate || null,
         tax_amount: 0,
         additional_charges: totals.additionalCharges || 0,
         received_amount: Number(data.receivedAmount) || 0,

@@ -29,7 +29,7 @@ export default async function CombinedInvoicePrintPage({ params }: { params: { i
     )
   }
 
-  const itemsRes = await db.query(`SELECT item_description, quantity, unit_price, total_price, booking_date FROM invoice_items WHERE invoice_id = $1 ORDER BY booking_date NULLS LAST, item_description`, [id])
+  const itemsRes = await db.query(`SELECT item_description, quantity, rate as unit_price, amount as total_price, booking_date FROM invoice_items WHERE invoice_id = $1 ORDER BY booking_date NULLS LAST, item_description`, [id])
   const items = itemsRes.rows || []
 
   const subtotal = Number(invoice.subtotal) || items.reduce((s: number, r: any) => s + Number(r.total_price || 0), 0)

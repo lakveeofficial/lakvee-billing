@@ -69,7 +69,6 @@ export default function InvoicesPage() {
         id: String(row.id),
         invoiceNumber: row.invoice_number,
         invoiceDate: row.invoice_date,
-        dueDate: (row as any).due_date || undefined,
         customer: {
           id: String(row.party_id),
           partyName: row.party_name || 'Unknown',
