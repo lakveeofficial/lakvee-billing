@@ -21,7 +21,20 @@ export default async function CsvInvoiceDetail({ params, searchParams }: { param
         actions={(
           <div className="flex items-center gap-2">
             <a href={`/api/csv-invoices/${row.id}/csv`} className="px-3 py-2 text-sm rounded-lg border border-white/30 bg-white/10 hover:bg-white/20 text-white">Download CSV</a>
-            <a href={`/api/csv-invoices/${row.id}/pdf?template=courier_aryan`} className="px-3 py-2 text-sm rounded-lg border border-white/30 bg-white/10 hover:bg-white/20 text-white">Download PDF</a>
+            <button 
+              onClick={(e) => {
+                e.preventDefault();
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.src = `/api/csv-invoices/${row.id}/pdf?template=courier_aryan`;
+                document.body.appendChild(iframe);
+                // Also open in a new tab as fallback
+                window.open(`/api/csv-invoices/${row.id}/pdf?template=courier_aryan`, '_blank', 'noopener,noreferrer');
+              }}
+              className="px-3 py-2 text-sm rounded-lg border border-white/30 bg-white/10 hover:bg-white/20 text-white"
+            >
+              Download PDF
+            </button>
             <div className="hidden md:block"><PdfTemplatePicker id={row.id} /></div>
             <div className="hidden md:block"><DeleteButton id={row.id} /></div>
             <a href="/dashboard/csv-invoices" className="px-3 py-2 text-sm rounded-lg border border-white/30 bg-white/10 hover:bg-white/20 text-white">Back to list</a>

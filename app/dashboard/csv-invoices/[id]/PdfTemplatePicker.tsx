@@ -9,6 +9,13 @@ export default function PdfTemplatePicker({ id }: { id: string }) {
 
   const onSelect = (templateId: string) => {
     const url = `/api/csv-invoices/${id}/pdf?template=${encodeURIComponent(templateId)}`
+    // Create a hidden iframe to handle the download with credentials
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = url;
+    document.body.appendChild(iframe);
+    
+    // Also open in a new tab as fallback
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 

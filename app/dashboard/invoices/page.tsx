@@ -259,6 +259,14 @@ export default function InvoicesPage() {
     try {
       const tpl = templateId || 'courier_aryan'
       const url = `/api/invoices/${selectedInvoice.id}/pdf?template=${encodeURIComponent(tpl)}`
+      
+      // Create a hidden iframe to handle the download with credentials
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = url;
+      document.body.appendChild(iframe);
+      
+      // Also open in a new tab as fallback
       window.open(url, '_blank', 'noopener,noreferrer')
     } finally {
       setShowTemplateModal(false)
