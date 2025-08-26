@@ -37,7 +37,12 @@ export default function PdfViewer({ pdfUrl, filename, onClose, isOpen }: PdfView
             }
           })
 
-          if (!response.ok) {
+          const ct = response.headers.get('content-type') || ''
+          if (!response.ok || (!ct.includes('application/pdf') && !ct.includes('application/octet-stream'))) {
+            const text = await response.clone().text().catch(() => '')
+            if (response.status === 401 || /<html/i.test(text)) {
+              throw new Error('Not authenticated. Please sign in and try again.')
+            }
             throw new Error(`Failed to load PDF: ${response.status} ${response.statusText}`)
           }
 

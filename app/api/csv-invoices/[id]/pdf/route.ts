@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 import jsPDF from 'jspdf'
 import { db } from '@/lib/db'
 import { getAnyActiveCompany } from '@/lib/company'
@@ -646,9 +646,9 @@ function drawTemplate(doc: jsPDF, tpl: string, company: any, row: any) {
   if (tpl === 'signature' || tpl === 'default') { drawSignature(doc, company) }
 }
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   // Check authentication first
-  const user = await getUserFromRequest(request as any)
+  const user = await getUserFromRequest(request)
   if (!user) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
   }

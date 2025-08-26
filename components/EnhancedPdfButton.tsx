@@ -49,13 +49,20 @@ export default function EnhancedPdfButton({
           headers: { 'Accept': 'application/pdf' }
         })
 
-        if (response.ok) {
-          blob = await response.blob()
-          // Cache the PDF for future use
-          pdfCache.set(url, blob)
-        } else {
-          throw new Error('Failed to download PDF')
+        // Check for redirect to login or HTML response
+        const ct = response.headers.get('content-type') || ''
+        if (!response.ok || (!ct.includes('application/pdf') && !ct.includes('application/octet-stream'))) {
+          // Try to peek at body to detect HTML/login content
+          const text = await response.clone().text().catch(() => '')
+          if (response.status === 401 || /<html/i.test(text)) {
+            throw new Error('Not authenticated. Please sign in and try again.')
+          }
+          throw new Error(`Failed to download PDF (${response.status})`)
         }
+
+        blob = await response.blob()
+        // Cache the PDF for future use
+        pdfCache.set(url, blob)
       }
 
       const blobUrl = URL.createObjectURL(blob)
