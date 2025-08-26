@@ -154,7 +154,7 @@ export default async function CsvInvoicesPage({ searchParams }: { searchParams: 
                     <a title="Edit" href={`/dashboard/csv-invoices/${row.id}?edit=1`} className="p-2 rounded hover:bg-amber-50 text-amber-600"><Pencil className="h-4 w-4" /></a>
                     <a title="Download CSV" href={`/api/csv-invoices/${row.id}/csv`} className="p-2 rounded hover:bg-emerald-50 text-emerald-600"><FileSpreadsheet className="h-4 w-4" /></a>
                     <ApplyRateButton id={row.id} />
-                    <PrintPdfButton id={row.id} />
+                    <PrintPdfButton invoiceId={row.id} />
                     <DeleteRowButton id={row.id} />
                   </div>
                 </td>
