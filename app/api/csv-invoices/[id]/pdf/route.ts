@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
-import { getCsvInvoiceById } from '@/lib/csvInvoices'
-import { getAnyActiveCompany } from '@/lib/company'
 import jsPDF from 'jspdf'
+import { db } from '@/lib/db'
+import { getAnyActiveCompany } from '@/lib/company'
+import { getUserFromRequest } from '@/lib/auth'
 
 function inr(amount: any) {
   const n = Number(amount)
@@ -646,13 +647,21 @@ function drawTemplate(doc: jsPDF, tpl: string, company: any, row: any) {
 }
 
 export async function GET(request: Request, { params }: { params: { id: string } }) {
+  // Check authentication first
+  const user = await getUserFromRequest(request as any)
+  if (!user) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+  }
+
   try {
     console.log(`Generating PDF for invoice ${params.id}`);
     const { searchParams } = new URL(request.url);
     const template = searchParams.get('template') || 'default';
 
     console.log('Fetching invoice data...');
-    const row = await getCsvInvoiceById(params.id);
+    // Query the database directly instead of using getCsvInvoiceById
+    const result = await db.query('SELECT * FROM csv_invoices WHERE id = $1', [params.id]);
+    const row = result.rows[0];
     if (!row) {
       console.error('Invoice not found:', params.id);
       return NextResponse.json({ error: 'Not found' }, { status: 404 });

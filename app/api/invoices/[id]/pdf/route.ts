@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import jsPDF from 'jspdf'
 import { db } from '@/lib/db'
 import { getAnyActiveCompany } from '@/lib/company'
+import { getUserFromRequest } from '@/lib/auth'
 
 function inr(amount: any) {
   const n = Number(amount)
@@ -166,6 +167,12 @@ function drawHeader(doc: jsPDF, company: any, title: string) {
 }
 
 export async function GET(request: Request, { params }: { params: { id: string } }) {
+  // Check authentication first
+  const user = await getUserFromRequest(request as any)
+  if (!user) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+  }
+
   const { id } = params
   const url = new URL(request.url)
   const template = url.searchParams.get('template') || 'courier_aryan'
