@@ -702,6 +702,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
         'Content-Type': 'application/pdf',
         'Content-Disposition': `inline; filename="csv-invoice-${params.id}.pdf"`,
         'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'Access-Control-Allow-Credentials': 'true',
+        'Access-Control-Allow-Origin': request.headers.get('origin') || 'https://lakvee-billing-dev.vercel.app',
         'Pragma': 'no-cache',
         'Expires': '0'
       }
@@ -714,7 +716,13 @@ export async function GET(request: Request, { params }: { params: { id: string }
         message: error instanceof Error ? error.message : 'Unknown error',
         stack: process.env.NODE_ENV === 'development' ? (error as Error).stack : undefined
       },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: {
+          'Access-Control-Allow-Credentials': 'true',
+          'Access-Control-Allow-Origin': request.headers.get('origin') || 'https://lakvee-billing-dev.vercel.app',
+        }
+      }
     );
   }
 }
