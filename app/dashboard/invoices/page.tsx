@@ -18,6 +18,7 @@ import {
   Upload
 } from 'lucide-react'
 import TemplateSelectionModal from '@/components/TemplateSelectionModal'
+import EnhancedPdfButton from '@/components/EnhancedPdfButton'
 import { Invoice, InvoiceFilters, INVOICE_STATUSES, PAYMENT_STATUSES, PAYMENT_TYPES } from '@/types/invoice'
 import PageHeader from '@/components/PageHeader'
 import ConfirmDialog from '@/components/ConfirmDialog'
@@ -260,14 +261,27 @@ export default function InvoicesPage() {
       const tpl = templateId || 'courier_aryan'
       const url = `/api/invoices/${selectedInvoice.id}/pdf?template=${encodeURIComponent(tpl)}`
       
-      // Create a hidden iframe to handle the download with credentials
-      const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
-      iframe.src = url;
-      document.body.appendChild(iframe);
+      // Fetch the PDF with credentials to ensure authentication works
+      const response = await fetch(url, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/pdf',
+        }
+      })
       
-      // Also open in a new tab as fallback
-      window.open(url, '_blank', 'noopener,noreferrer')
+      if (response.ok) {
+        const blob = await response.blob()
+        const blobUrl = URL.createObjectURL(blob)
+        window.open(blobUrl, '_blank', 'noopener,noreferrer')
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
+      } else {
+        console.error('Failed to fetch PDF:', response.status, response.statusText)
+        alert('Failed to generate PDF. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error fetching PDF:', error)
+      alert('Failed to generate PDF. Please try again.')
     } finally {
       setShowTemplateModal(false)
       setSelectedInvoice(null)
@@ -672,13 +686,14 @@ export default function InvoicesPage() {
                         >
                           <Eye className="h-4 w-4" />
                         </button>
-                        <button
-                          onClick={() => handleDownloadPDF(invoice)}
-                          className="text-green-600 hover:text-green-900 p-1"
-                          title="Download PDF"
-                        >
-                          <Printer className="h-4 w-4" />
-                        </button>
+                        <EnhancedPdfButton
+                          id={invoice.id}
+                          apiPath="/api/invoices"
+                          filename={`invoice-${invoice.invoiceNumber}.pdf`}
+                          variant="icon"
+                          showTemplateSelector={true}
+                          className="text-green-600 hover:text-green-900"
+                        />
                         <button
                           onClick={() => handleDownloadCSV(invoice)}
                           className="text-purple-600 hover:text-purple-900 p-1"

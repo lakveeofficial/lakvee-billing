@@ -173,7 +173,29 @@ export default function GeneratePartyInvoiceButton({ rows, defaultParty }: Props
               {error && <div className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded px-2 py-2">{error}</div>}
               {result && (
                 <div className="text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded px-2 py-2">
-                  Invoice created: <span className="font-mono">{result.invoice_number}</span> — <a className="underline" href={`/api/party-invoices/${result.id}/pdf`} target="_blank">Open PDF</a>
+                  Invoice created: <span className="font-mono">{result.invoice_number}</span> — <button 
+                    className="underline text-emerald-800 hover:text-emerald-900" 
+                    onClick={async () => {
+                      try {
+                        const response = await fetch(`/api/party-invoices/${result.id}/pdf`, {
+                          method: 'GET',
+                          credentials: 'include',
+                          headers: { 'Accept': 'application/pdf' }
+                        })
+                        if (response.ok) {
+                          const blob = await response.blob()
+                          const blobUrl = URL.createObjectURL(blob)
+                          window.open(blobUrl, '_blank', 'noopener,noreferrer')
+                          setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
+                        } else {
+                          alert('Failed to open PDF. Please try again.')
+                        }
+                      } catch (error) {
+                        console.error('Error opening PDF:', error)
+                        alert('Failed to open PDF. Please try again.')
+                      }
+                    }}
+                  >Open PDF</button>
                 </div>
               )}
             </div>
