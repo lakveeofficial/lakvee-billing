@@ -645,11 +645,11 @@ function drawTemplate(doc: jsPDF, tpl: string, company: any, row: any) {
   if (tpl === 'signature' || tpl === 'default') { drawSignature(doc, company) }
 }
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+async function generatePDF(request: Request, params: { id: string }, template?: string) {
   try {
     console.log(`Generating PDF for invoice ${params.id}`);
     const { searchParams } = new URL(request.url);
-    const template = searchParams.get('template') || 'default';
+    const templateParam = template || searchParams.get('template') || 'default';
 
     console.log('Fetching invoice data...');
     const row = await getCsvInvoiceById(params.id);
@@ -683,7 +683,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
     
     try {
       console.log('Drawing template:', template);
-      drawTemplate(doc, template, company, row);
+      drawTemplate(doc, templateParam, company, row);
     } catch (templateError) {
       console.error('Error in drawTemplate:', templateError);
       // Create a simple error PDF
@@ -724,5 +724,20 @@ export async function GET(request: Request, { params }: { params: { id: string }
         }
       }
     );
+  }
+}
+
+export async function GET(request: Request, { params }: { params: { id: string } }) {
+  return generatePDF(request, params);
+}
+
+export async function POST(request: Request, { params }: { params: { id: string } }) {
+  try {
+    const formData = await request.formData();
+    const template = formData.get('template') as string;
+    return generatePDF(request, params, template);
+  } catch (error) {
+    console.error('Error parsing form data:', error);
+    return generatePDF(request, params);
   }
 }

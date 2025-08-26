@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import jsPDF from 'jspdf'
 import { db } from '@/lib/db'
 import { getAnyActiveCompany } from '@/lib/company'
+import { getUserFromRequest } from '@/lib/auth'
 
 function inr(amount: any) {
   const n = Number(amount)
@@ -165,11 +166,13 @@ function drawHeader(doc: jsPDF, company: any, title: string) {
   return Math.max(94, titleY + 26)
 }
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+async function generateInvoicePDF(request: Request, params: { id: string }, template?: string) {
   const { id } = params
   const url = new URL(request.url)
-  const template = url.searchParams.get('template') || 'courier_aryan'
+  const templateParam = template || url.searchParams.get('template') || 'courier_aryan'
+  
   try {
+
     // Fetch invoice header + party
     const invRes = await db.query(
       `SELECT i.*, p.party_name, p.phone AS party_phone, p.address AS party_address, p.city AS party_city, p.state AS party_state, p.pincode AS party_pincode, p.gst_number AS party_gstin
@@ -479,5 +482,20 @@ export async function GET(request: Request, { params }: { params: { id: string }
         'Access-Control-Allow-Origin': request.headers.get('origin') || 'https://lakvee-billing-dev.vercel.app',
       }
     })
+  }
+}
+
+export async function GET(request: Request, { params }: { params: { id: string } }) {
+  return generateInvoicePDF(request, params);
+}
+
+export async function POST(request: Request, { params }: { params: { id: string } }) {
+  try {
+    const formData = await request.formData();
+    const template = formData.get('template') as string;
+    return generateInvoicePDF(request, params, template);
+  } catch (error) {
+    console.error('Error parsing form data:', error);
+    return generateInvoicePDF(request, params);
   }
 }
