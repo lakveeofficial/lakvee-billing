@@ -1,6 +1,6 @@
 {
   "name": "billing-portal-v1",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Logistic & Courier Billing Application",
   "private": true,
   "scripts": {
