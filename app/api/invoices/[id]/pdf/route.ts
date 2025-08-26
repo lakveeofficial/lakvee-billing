@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import jsPDF from 'jspdf'
 import { db } from '@/lib/db'
 import { getAnyActiveCompany } from '@/lib/company'
-import { getUserFromRequest } from '@/lib/auth'
 
 function inr(amount: any) {
   const n = Number(amount)
@@ -166,13 +165,11 @@ function drawHeader(doc: jsPDF, company: any, title: string) {
   return Math.max(94, titleY + 26)
 }
 
-async function generateInvoicePDF(request: Request, params: { id: string }, template?: string) {
+export async function GET(request: Request, { params }: { params: { id: string } }) {
   const { id } = params
   const url = new URL(request.url)
-  const templateParam = template || url.searchParams.get('template') || 'courier_aryan'
-  
+  const template = url.searchParams.get('template') || 'courier_aryan'
   try {
-
     // Fetch invoice header + party
     const invRes = await db.query(
       `SELECT i.*, p.party_name, p.phone AS party_phone, p.address AS party_address, p.city AS party_city, p.state AS party_state, p.pincode AS party_pincode, p.gst_number AS party_gstin
@@ -467,35 +464,12 @@ async function generateInvoicePDF(request: Request, params: { id: string }, temp
         'Content-Type': 'application/pdf',
         'Content-Disposition': `inline; filename="invoice-${inv.invoice_number}.pdf"`,
         'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-        'Access-Control-Allow-Credentials': 'true',
-        'Access-Control-Allow-Origin': request.headers.get('origin') || 'https://lakvee-billing-dev.vercel.app',
         Pragma: 'no-cache',
         Expires: '0'
       }
     })
   } catch (e) {
     console.error('Error generating invoice PDF:', e)
-    return NextResponse.json({ error: 'Failed to generate PDF' }, { 
-      status: 500,
-      headers: {
-        'Access-Control-Allow-Credentials': 'true',
-        'Access-Control-Allow-Origin': request.headers.get('origin') || 'https://lakvee-billing-dev.vercel.app',
-      }
-    })
-  }
-}
-
-export async function GET(request: Request, { params }: { params: { id: string } }) {
-  return generateInvoicePDF(request, params);
-}
-
-export async function POST(request: Request, { params }: { params: { id: string } }) {
-  try {
-    const formData = await request.formData();
-    const template = formData.get('template') as string;
-    return generateInvoicePDF(request, params, template);
-  } catch (error) {
-    console.error('Error parsing form data:', error);
-    return generateInvoicePDF(request, params);
+    return NextResponse.json({ error: 'Failed to generate PDF' }, { status: 500 })
   }
 }

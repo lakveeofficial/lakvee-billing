@@ -645,11 +645,11 @@ function drawTemplate(doc: jsPDF, tpl: string, company: any, row: any) {
   if (tpl === 'signature' || tpl === 'default') { drawSignature(doc, company) }
 }
 
-async function generatePDF(request: Request, params: { id: string }, template?: string) {
+export async function GET(request: Request, { params }: { params: { id: string } }) {
   try {
     console.log(`Generating PDF for invoice ${params.id}`);
     const { searchParams } = new URL(request.url);
-    const templateParam = template || searchParams.get('template') || 'default';
+    const template = searchParams.get('template') || 'default';
 
     console.log('Fetching invoice data...');
     const row = await getCsvInvoiceById(params.id);
@@ -683,7 +683,7 @@ async function generatePDF(request: Request, params: { id: string }, template?: 
     
     try {
       console.log('Drawing template:', template);
-      drawTemplate(doc, templateParam, company, row);
+      drawTemplate(doc, template, company, row);
     } catch (templateError) {
       console.error('Error in drawTemplate:', templateError);
       // Create a simple error PDF
@@ -702,8 +702,6 @@ async function generatePDF(request: Request, params: { id: string }, template?: 
         'Content-Type': 'application/pdf',
         'Content-Disposition': `inline; filename="csv-invoice-${params.id}.pdf"`,
         'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-        'Access-Control-Allow-Credentials': 'true',
-        'Access-Control-Allow-Origin': request.headers.get('origin') || 'https://lakvee-billing-dev.vercel.app',
         'Pragma': 'no-cache',
         'Expires': '0'
       }
@@ -716,28 +714,7 @@ async function generatePDF(request: Request, params: { id: string }, template?: 
         message: error instanceof Error ? error.message : 'Unknown error',
         stack: process.env.NODE_ENV === 'development' ? (error as Error).stack : undefined
       },
-      { 
-        status: 500,
-        headers: {
-          'Access-Control-Allow-Credentials': 'true',
-          'Access-Control-Allow-Origin': request.headers.get('origin') || 'https://lakvee-billing-dev.vercel.app',
-        }
-      }
+      { status: 500 }
     );
-  }
-}
-
-export async function GET(request: Request, { params }: { params: { id: string } }) {
-  return generatePDF(request, params);
-}
-
-export async function POST(request: Request, { params }: { params: { id: string } }) {
-  try {
-    const formData = await request.formData();
-    const template = formData.get('template') as string;
-    return generatePDF(request, params, template);
-  } catch (error) {
-    console.error('Error parsing form data:', error);
-    return generatePDF(request, params);
   }
 }

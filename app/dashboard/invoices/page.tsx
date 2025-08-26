@@ -686,29 +686,6 @@ export default function InvoicesPage() {
                         >
                           <Eye className="h-4 w-4" />
                         </button>
-                        <button
-                          onClick={() => {
-                            const form = document.createElement('form')
-                            form.method = 'POST'
-                            form.action = `/api/invoices/${invoice.id}/pdf`
-                            form.target = '_blank'
-                            form.style.display = 'none'
-                            
-                            const templateInput = document.createElement('input')
-                            templateInput.type = 'hidden'
-                            templateInput.name = 'template'
-                            templateInput.value = 'courier_aryan'
-                            form.appendChild(templateInput)
-                            
-                            document.body.appendChild(form)
-                            form.submit()
-                            document.body.removeChild(form)
-                          }}
-                          className="p-1 text-blue-600 hover:text-blue-800"
-                          title="Download PDF"
-                        >
-                          <FileText className="h-4 w-4" />
-                        </button>
                         <EnhancedPdfButton
                           id={invoice.id}
                           apiPath="/api/invoices"
