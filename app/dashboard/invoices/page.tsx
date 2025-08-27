@@ -9,9 +9,8 @@ import {
   Edit, 
   Trash2, 
   Download,
-  Eye,
   Calendar,
-  DollarSign,
+  IndianRupee,
   FileText,
   FileDown,
   Printer,
@@ -22,6 +21,7 @@ import EnhancedPdfButton from '@/components/EnhancedPdfButton'
 import { Invoice, InvoiceFilters, INVOICE_STATUSES, PAYMENT_STATUSES, PAYMENT_TYPES } from '@/types/invoice'
 import PageHeader from '@/components/PageHeader'
 import ConfirmDialog from '@/components/ConfirmDialog'
+import QuickReceiveModal from './[id]/QuickReceiveModal'
 
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([])
@@ -42,6 +42,8 @@ export default function InvoicesPage() {
   const [showTemplateModal, setShowTemplateModal] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean, id?: string, label?: string }>({ open: false })
+  const [receiveOpen, setReceiveOpen] = useState(false)
+  const [receiveInvoice, setReceiveInvoice] = useState<Invoice | null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -421,7 +423,7 @@ export default function InvoicesPage() {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
             <div className="bg-green-500 rounded-md p-3">
-              <DollarSign className="h-6 w-6 text-white" />
+              <IndianRupee className="h-6 w-6 text-white" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Amount</p>
@@ -433,7 +435,7 @@ export default function InvoicesPage() {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
             <div className="bg-purple-500 rounded-md p-3">
-              <DollarSign className="h-6 w-6 text-white" />
+              <IndianRupee className="h-6 w-6 text-white" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Received</p>
@@ -445,7 +447,7 @@ export default function InvoicesPage() {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
             <div className="bg-red-500 rounded-md p-3">
-              <DollarSign className="h-6 w-6 text-white" />
+              <IndianRupee className="h-6 w-6 text-white" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Balance</p>
@@ -632,10 +634,10 @@ export default function InvoicesPage() {
                     Party / Sender
                   </th>
                   
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Amount
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-l border-gray-200">
                     Actions
                   </th>
                 </tr>
@@ -657,6 +659,7 @@ export default function InvoicesPage() {
                           <Calendar className="h-3 w-3 mr-1" />
                           {new Date(invoice.invoiceDate).toLocaleDateString('en-IN')}
                         </div>
+                        {/* Receive action moved to Actions column for compactness */}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -670,21 +673,41 @@ export default function InvoicesPage() {
                       </div>
                     </td>
                     
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <div className="flex items-center gap-2 max-w-[360px] ml-auto justify-end">
+                        <span className="text-sm font-semibold text-gray-900" title="Total">
                           {formatCurrency(invoice.totalAmount)}
-                        </div>
+                        </span>
+                        <span
+                          className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 px-1.5 py-0 text-[10px] font-medium"
+                          title={`Received: ${formatCurrency(invoice.receivedAmount)}`}
+                        >
+                          R {formatCurrency(invoice.receivedAmount)}
+                        </span>
+                        <span
+                          className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 text-rose-700 px-1.5 py-0 text-[10px] font-medium"
+                          title={`Balance: ${formatCurrency(invoice.balance)}`}
+                        >
+                          B {formatCurrency(invoice.balance)}
+                        </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end space-x-1">
+                    <td className="px-6 py-4 whitespace-nowrap text-left text-sm font-medium border-l border-gray-200">
+                      <div className="flex items-center justify-start space-x-2">
+                        <button
+                          onClick={() => { setReceiveInvoice(invoice); setReceiveOpen(true) }}
+                          className="p-2.5 rounded-md text-emerald-600 hover:bg-emerald-50 border border-transparent hover:border-emerald-200"
+                          title="Receive Payment"
+                        >
+                          <IndianRupee className="h-5 w-5" />
+                        </button>
                         <button
                           onClick={() => handlePreview(invoice)}
-                          className="text-blue-600 hover:text-blue-900 p-1"
-                          title="Preview Invoice"
+                          className="p-2.5 rounded-md text-gray-700 hover:bg-gray-100 border border-transparent hover:border-gray-200"
+                          title="View Details"
                         >
-                          <Eye className="h-4 w-4" />
+                          {/* Eye icon from lucide-react (imported via dynamic import below) */}
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
                         </button>
                         <EnhancedPdfButton
                           id={invoice.id}
@@ -692,28 +715,28 @@ export default function InvoicesPage() {
                           filename={`invoice-${invoice.invoiceNumber}.pdf`}
                           variant="icon"
                           showTemplateSelector={true}
-                          className="text-green-600 hover:text-green-900"
+                          className="text-emerald-700"
                         />
                         <button
                           onClick={() => handleDownloadCSV(invoice)}
-                          className="text-purple-600 hover:text-purple-900 p-1"
+                          className="p-2.5 rounded-md text-purple-600 hover:bg-purple-50 border border-transparent hover:border-purple-200"
                           title="Download CSV"
                         >
-                          <FileDown className="h-4 w-4" />
+                          <FileDown className="h-5 w-5" />
                         </button>
                         <button
                           onClick={() => router.push(`/dashboard/invoices/${invoice.id}/edit`)}
-                          className="text-indigo-600 hover:text-indigo-900 p-1"
+                          className="p-2.5 rounded-md text-indigo-600 hover:bg-indigo-50 border border-transparent hover:border-indigo-200"
                           title="Edit"
                         >
-                          <Edit className="h-4 w-4" />
+                          <Edit className="h-5 w-5" />
                         </button>
                         <button
                           onClick={() => confirmDelete(invoice.id, invoice.invoiceNumber)}
-                          className="text-red-600 hover:text-red-900 p-1"
+                          className="p-2.5 rounded-md text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200"
                           title="Delete"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-5 w-5" />
                         </button>
                       </div>
                     </td>
@@ -745,6 +768,17 @@ export default function InvoicesPage() {
         destructive
         onConfirm={performDelete}
         onCancel={() => setDeleteDialog({ open: false })}
+      />
+
+      {/* Quick Receive Payment Modal */}
+      <QuickReceiveModal
+        isOpen={receiveOpen}
+        onClose={() => { setReceiveOpen(false); setReceiveInvoice(null) }}
+        invoiceId={Number(receiveInvoice?.id || 0)}
+        partyId={Number(receiveInvoice?.customer.id || 0)}
+        totalAmount={Number(receiveInvoice?.totalAmount || 0)}
+        receivedAmount={Number(receiveInvoice?.receivedAmount || 0)}
+        onSaved={async () => { await loadData(); }}
       />
     </div>
   )

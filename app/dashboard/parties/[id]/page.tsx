@@ -6,6 +6,7 @@ import { ArrowLeft, Edit, Trash2, Phone, Mail, MapPin, Building } from 'lucide-r
 import { Party } from '@/types/party'
 import Link from 'next/link'
 import PartyRateSlabsManager from '@/app/dashboard/rates/components/PartyRateSlabsManager'
+import PartyPayments from './PartyPayments'
 
 export default function PartyDetailsPage() {
   const [party, setParty] = useState<Party | null>(null)
@@ -420,6 +421,10 @@ export default function PartyDetailsPage() {
             </div>
           </div>
         </div>
+      </div>
+      {/* Payments Section */}
+      <div className="mt-6">
+        <PartyPayments partyId={Number(party.id)} />
       </div>
     </div>
   )

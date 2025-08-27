@@ -92,6 +92,28 @@ export const createPaymentSchema = z.object({
   notes: z.string().optional(),
 });
 
+// Party-level payments and allocations
+export const createPartyPaymentSchema = z.object({
+  party_id: z.number().min(1, 'Party is required'),
+  payment_date: z.string().refine((date) => !isNaN(Date.parse(date)), 'Invalid date format'),
+  amount: z.number().min(0.01, 'Payment amount must be positive'),
+  payment_method: z.string().optional(),
+  reference_no: z.string().optional(),
+  notes: z.string().optional(),
+  allocations: z.array(z.object({
+    invoice_id: z.number().min(1),
+    amount: z.number().min(0.01)
+  })).optional()
+});
+
+export const createPaymentAllocationsSchema = z.object({
+  party_payment_id: z.number().min(1, 'Party payment is required'),
+  allocations: z.array(z.object({
+    invoice_id: z.number().min(1),
+    amount: z.number().min(0.01)
+  })).min(1)
+});
+
 // Company validation schemas
 export const companySchema = z.object({
   businessName: z.string().min(2, 'Business name must be at least 2 characters'),
@@ -143,3 +165,5 @@ export type CreatePaymentInput = z.infer<typeof createPaymentSchema>;
 export type PaginationQuery = z.infer<typeof paginationSchema>;
 export type InvoiceQuery = z.infer<typeof invoiceQuerySchema>;
 export type ReportQuery = z.infer<typeof reportQuerySchema>;
+export type CreatePartyPaymentInput = z.infer<typeof createPartyPaymentSchema>;
+export type CreatePaymentAllocationsInput = z.infer<typeof createPaymentAllocationsSchema>;

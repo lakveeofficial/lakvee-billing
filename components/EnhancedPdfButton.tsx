@@ -31,7 +31,9 @@ export default function EnhancedPdfButton({
 
   const generatePdfUrl = (templateId?: string) => {
     const template = templateId || 'courier_aryan'
-    return `${apiPath}/${id}/pdf?template=${encodeURIComponent(template)}`
+    // Add cache-buster to ensure we fetch the latest PDF after backend changes
+    const ts = Date.now()
+    return `${apiPath}/${id}/pdf?template=${encodeURIComponent(template)}&_=${ts}`
   }
 
   const handleDirectDownload = async (templateId?: string) => {
@@ -120,10 +122,10 @@ export default function EnhancedPdfButton({
         <button
           onClick={handleQuickView}
           disabled={loading}
-          className={`p-2 rounded hover:bg-gray-50 text-gray-700 disabled:opacity-50 ${className}`}
+          className={`p-2.5 rounded-md hover:bg-gray-100 text-gray-700 disabled:opacity-50 border border-transparent hover:border-gray-200 transition ${className}`}
           title={loading ? 'Loading...' : 'View PDF'}
         >
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+          {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Printer className="h-5 w-5" />}
         </button>
 
         {showTemplateModal && (

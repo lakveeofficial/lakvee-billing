@@ -51,6 +51,34 @@ export default async function CsvInvoicesPage({ searchParams }: { searchParams: 
     try { return new Date(d).toLocaleDateString() } catch { return String(d) }
   }
 
+  // Helpers to mirror Distance column behavior used in PDF
+  const extractCityFromAddress = (addr: any): string => {
+    const raw = String(addr ?? '').trim()
+    if (!raw) return ''
+    const parts = raw.split(',').map((p: string) => p.trim()).filter(Boolean)
+    if (!parts.length) return ''
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const token = parts[i]
+      const hasAlpha = /[A-Za-z]/.test(token)
+      const isPincodeLike = /\b\d{5,6}\b/.test(token)
+      if (hasAlpha && !isPincodeLike) {
+        const cleaned = token.replace(/[-–,]*\s*(India|IN)$/i, '').trim()
+        return cleaned
+      }
+    }
+    return parts[0]
+  }
+
+  const distanceDisplay = (region: any, recipientAddress: any): string => {
+    const r = String(region ?? '').trim().toLowerCase()
+    const isCityCategory = /(^|\b)(within|metro|other\s*state|out\s*of\s*state)(\b|$)/.test(r)
+    if (isCityCategory) {
+      const city = extractCityFromAddress(recipientAddress)
+      return city || String(region ?? '')
+    }
+    return String(region ?? '')
+  }
+
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -119,10 +147,14 @@ export default async function CsvInvoicesPage({ searchParams }: { searchParams: 
             <thead className="bg-gray-50 sticky top-0 z-10">
             <tr>
               {headers.map(h => (
-                <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">{h === 'weight' ? 'WEIGHT (IN Kg)' : h.split('_').join(' ')}</th>
+                <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">{
+                  h === 'weight' ? 'WEIGHT (IN Kg)'
+                  : h === 'region' ? 'DISTANCE'
+                  : h.split('_').join(' ')
+                }</th>
               ))}
               <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Slab Rate</th>
-              <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-600 uppercase tracking-wider">Action</th>
+              <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-600 uppercase tracking-wider border-l border-gray-200">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -136,7 +168,9 @@ export default async function CsvInvoicesPage({ searchParams }: { searchParams: 
                     ? fmtDate(val)
                     : (h === 'final_collected' || h === 'retail_price')
                       ? inr(val)
-                        : String(val ?? '')
+                        : (h === 'region')
+                          ? distanceDisplay(row.region, row.recipient_address)
+                          : String(val ?? '')
                   return (
                     <td key={h} className={`${commonCls} ${truncateCls}`}>{content}</td>
                   )
@@ -148,7 +182,7 @@ export default async function CsvInvoicesPage({ searchParams }: { searchParams: 
                     <td className="px-4 py-2 whitespace-nowrap text-gray-900">{base != null ? inr(base) : ''}</td>
                   )
                 })()}
-                <td className="px-4 py-2 whitespace-nowrap">
+                <td className="px-4 py-2 whitespace-nowrap border-l border-gray-200">
                   <div className="flex items-center gap-1">
                     <a title="View" href={`/dashboard/csv-invoices/${row.id}`} className="p-2 rounded hover:bg-blue-50 text-blue-600"><Eye className="h-4 w-4" /></a>
                     <a title="Edit" href={`/dashboard/csv-invoices/${row.id}?edit=1`} className="p-2 rounded hover:bg-amber-50 text-amber-600"><Pencil className="h-4 w-4" /></a>

@@ -7,7 +7,8 @@ import { getUserFromRequest } from '@/lib/auth'
 function inr(amount: any) {
   const n = Number(amount)
   if (!isFinite(n)) return ''
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(n)
+  // NOTE: Use ASCII-safe currency label for PDF to avoid unsupported glyphs (₹) in core fonts
+  return 'INR ' + new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
 }
 
 function drawSignature(doc: jsPDF, company: any) {
@@ -52,6 +53,39 @@ function numberToWordsINR(amount: number) {
   const r = toWords(rupees) + ' Rupees'
   const p = paise ? ' and ' + toWords(paise) + ' Paisa' : ''
   return (r + p + ' only').replace(/\s+/g, ' ').trim()
+}
+
+// Extract a plausible city name from a free-form address string
+function extractCityFromAddress(addr: string | null | undefined): string {
+  const raw = (addr ?? '').toString().trim()
+  if (!raw) return ''
+  // Split by comma and trim parts
+  const parts = raw.split(',').map(p => p.trim()).filter(Boolean)
+  if (!parts.length) return ''
+  // Heuristic: examine from the end, pick the first token that contains letters and is not mostly digits/pincode-like
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const token = parts[i]
+    const hasAlpha = /[A-Za-z]/.test(token)
+    const isPincodeLike = /\b\d{5,6}\b/.test(token)
+    if (hasAlpha && !isPincodeLike) {
+      // Remove trailing state codes or country if appended with hyphen/space
+      const cleaned = token.replace(/[-–,]*\s*(India|IN)$/i, '').trim()
+      return cleaned
+    }
+  }
+  // Fallback to the first part
+  return parts[0]
+}
+
+function distanceDisplay(region: string | null | undefined, recipientAddress: string | null | undefined): string {
+  const r = (region ?? '').toString().trim().toLowerCase()
+  // Treat these categories as city-display types (handle variants like 'within state')
+  const isCityCategory = /(^|\b)(within|metro|other\s*state|out\s*of\s*state)(\b|$)/.test(r)
+  if (isCityCategory) {
+    const city = extractCityFromAddress(recipientAddress)
+    return city || (region ?? '')
+  }
+  return (region ?? '')
 }
 
 // Convert non-data URL images to data URLs; support relative paths and raw base64
@@ -192,7 +226,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     // Fetch consignments linked to this invoice
     const consRes = await db.query(
-      `SELECT consignment_no, booking_date, shipment_type, mode, service_type, region, weight, chargeable_weight, retail_price, prepaid_amount, final_collected, calculated_amount, pricing_meta
+      `SELECT consignment_no, booking_date, shipment_type, mode, service_type, recipient_address, region, weight, chargeable_weight, retail_price, prepaid_amount, final_collected, calculated_amount, pricing_meta
        FROM csv_invoices
        WHERE invoice_id = $1
        ORDER BY created_at ASC`,
@@ -270,13 +304,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       const base = Number(
         (slabBase ?? it.calculated_amount ?? it.prepaid_amount ?? it.final_collected ?? it.retail_price ?? 0)
       )
+      const distance = distanceDisplay(it.region, it.recipient_address)
       return [
         String(it.consignment_no || ''),
         String(qty),
         String(it.shipment_type || ''),
         String(it.mode || ''),
         String(it.service_type || ''),
-        String(it.region || ''),
+        String(distance || ''),
         inrNumber(weight),
         inrNumber(base)
       ]
@@ -442,16 +477,16 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       doc.text(value, svalueX, sy, { align: 'right' as any })
       sy += sbLH2
     }
-    put('Subtotal', `Rs. ${inrNumber(subTotal)}`)
-    if (fuelPct) put(`Fuel (${inrNumber(fuelPct)}%)`, `Rs. ${inrNumber(fuelAmtComputed)}`)
-    if (packing) put('Packing', `Rs. ${inrNumber(packing)}`)
-    if (handling) put('Handling', `Rs. ${inrNumber(handling)}`)
+    put('Subtotal', `INR ${inrNumber(subTotal)}`)
+    if (fuelPct) put(`Fuel (${inrNumber(fuelPct)}%)`, `INR ${inrNumber(fuelAmtComputed)}`)
+    if (packing) put('Packing', `INR ${inrNumber(packing)}`)
+    if (handling) put('Handling', `INR ${inrNumber(handling)}`)
     if (gstPct) {
-      put(`SGST (${inrNumber(gstHalfPct)}%)`, `Rs. ${inrNumber(sgstAmtComputed)}`)
-      put(`CGST (${inrNumber(gstHalfPct)}%)`, `Rs. ${inrNumber(cgstAmtComputed)}`)
+      put(`SGST (${inrNumber(gstHalfPct)}%)`, `INR ${inrNumber(sgstAmtComputed)}`)
+      put(`CGST (${inrNumber(gstHalfPct)}%)`, `INR ${inrNumber(cgstAmtComputed)}`)
     }
     doc.setFont('courier', 'bold')
-    put('Total', `Rs. ${inrNumber(total)}`)
+    put('Total', `INR ${inrNumber(total)}`)
     doc.setFont('courier', 'normal')
     y = sbTop2 + (sbLH2 * 8 + 24) + 24
 
@@ -461,6 +496,34 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     y += 14; doc.setFont('helvetica', 'normal')
     const words = doc.splitTextToSize(numberToWordsINR(total), 480)
     doc.text(words, left, y)
+
+    // Total / Received / Balance box (uses inv.received_amount)
+    y += 28
+    const tLeft = left
+    const tWidth = 515
+    const tCols = [tLeft, tLeft + tWidth/3, tLeft + 2*tWidth/3, tLeft + tWidth]
+    const tRowH = 24
+    const tTop = y
+    // header row
+    doc.setDrawColor(0)
+    doc.line(tCols[0], tTop, tCols[3], tTop)
+    doc.line(tCols[0], tTop + tRowH, tCols[3], tTop + tRowH)
+    for (let i = 0; i < tCols.length; i++) { doc.line(tCols[i], tTop, tCols[i], tTop + tRowH) }
+    doc.setFont('helvetica', 'bold')
+    doc.text('Total', tCols[0] + 8, tTop + 15)
+    doc.text('Received', tCols[1] + 8, tTop + 15)
+    doc.text('Balance', tCols[2] + 8, tTop + 15)
+    // values row
+    const vTop = tTop + tRowH
+    doc.line(tCols[0], vTop, tCols[3], vTop)
+    doc.line(tCols[0], vTop + tRowH, tCols[3], vTop + tRowH)
+    for (let i = 0; i < tCols.length; i++) { doc.line(tCols[i], vTop, tCols[i], vTop + tRowH) }
+    const receivedAmt = Number((inv as any).received_amount ?? 0)
+    const balanceAmt = Math.max(total - receivedAmt, 0)
+    doc.setFont('helvetica', 'normal')
+    doc.text(inr(total), tCols[0] + 8, vTop + 15)
+    doc.text(inr(receivedAmt), tCols[1] + 8, vTop + 15)
+    doc.text(inr(balanceAmt), tCols[2] + 8, vTop + 15)
 
     // Draw signature on the final page
     drawSignature(doc, company)

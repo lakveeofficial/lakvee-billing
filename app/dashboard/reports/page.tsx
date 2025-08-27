@@ -11,7 +11,7 @@ import {
   Filter,
   Users,
   TrendingUp,
-  DollarSign,
+  IndianRupee,
   Clock
 } from 'lucide-react'
 import { 
@@ -418,7 +418,7 @@ export default function ReportsPage() {
       case 'sales': return BarChart3
       case 'party_statement': return Users
       case 'daybook': return Clock
-      case 'outstanding': return DollarSign
+      case 'outstanding': return IndianRupee
       case 'party_summary': return TrendingUp
       case 'gst_summary': return FileText
       default: return FileText
@@ -486,7 +486,7 @@ export default function ReportsPage() {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="bg-green-500 rounded-md p-3">
-                <DollarSign className="h-6 w-6 text-white" />
+                <IndianRupee className="h-6 w-6 text-white" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Sales</p>
@@ -510,7 +510,7 @@ export default function ReportsPage() {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="bg-red-500 rounded-md p-3">
-                <DollarSign className="h-6 w-6 text-white" />
+                <IndianRupee className="h-6 w-6 text-white" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Balance</p>

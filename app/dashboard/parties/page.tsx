@@ -14,7 +14,12 @@ import {
   Layers,
   Phone,
   Mail,
-  Users
+  Users,
+  IndianRupee,
+  Calendar,
+  CreditCard,
+  Hash,
+  StickyNote
 } from 'lucide-react'
 import { Party, PartyFilters, GST_TYPES, INDIAN_STATES } from '@/types/party'
 import PageHeader from '@/components/PageHeader'
@@ -29,6 +34,16 @@ export default function PartiesPage() {
   })
   const [showFilters, setShowFilters] = useState(false)
   const [loading, setLoading] = useState(true)
+  // Inline Add Payment modal state
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false)
+  const [paymentSaving, setPaymentSaving] = useState(false)
+  const [paymentPartyId, setPaymentPartyId] = useState<string | null>(null)
+  const [paymentPartyName, setPaymentPartyName] = useState<string>('')
+  const [paymentDate, setPaymentDate] = useState<string>(() => new Date().toISOString().slice(0,10))
+  const [paymentAmount, setPaymentAmount] = useState<string>('')
+  const [paymentMethod, setPaymentMethod] = useState<string>('')
+  const [paymentRef, setPaymentRef] = useState<string>('')
+  const [paymentNotes, setPaymentNotes] = useState<string>('')
   const router = useRouter()
 
   // Helper to format ISO timestamps for display in table
@@ -37,6 +52,56 @@ export default function PartiesPage() {
     const d = new Date(iso)
     if (isNaN(d.getTime())) return '—'
     return d.toLocaleString()
+  }
+
+  const openPaymentModal = (party: Party) => {
+    setPaymentPartyId(String(party.id))
+    setPaymentPartyName(party.partyName)
+    setPaymentDate(new Date().toISOString().slice(0,10))
+    setPaymentAmount('')
+    setPaymentMethod('')
+    setPaymentRef('')
+    setPaymentNotes('')
+    setPaymentModalOpen(true)
+  }
+
+  const savePartyPayment = async () => {
+    const amt = parseFloat(paymentAmount)
+    if (!amt || amt <= 0) {
+      alert('Enter a valid amount')
+      return
+    }
+    if (!paymentPartyId) return
+    setPaymentSaving(true)
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+      const res = await fetch('/api/party-payments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          party_id: Number(paymentPartyId),
+          payment_date: paymentDate,
+          amount: amt,
+          payment_method: paymentMethod || undefined,
+          reference_no: paymentRef || undefined,
+          notes: paymentNotes || undefined,
+          allocations: [],
+        })
+      })
+      if (!res.ok) {
+        const j = await res.json().catch(()=>({}))
+        throw new Error(j.error || `Failed to save: ${res.status}`)
+      }
+      setPaymentModalOpen(false)
+      alert('Payment saved')
+    } catch (e:any) {
+      alert(e?.message || 'Failed to save payment')
+    } finally {
+      setPaymentSaving(false)
+    }
   }
 
   useEffect(() => {
@@ -384,6 +449,16 @@ export default function PartiesPage() {
                         <div className="text-sm text-gray-500">
                           ID: {party.id}
                         </div>
+                        <div className="mt-2">
+                          <button
+                            onClick={() => openPaymentModal(party)}
+                            className="inline-flex items-center px-2.5 py-1.5 rounded-md text-xs font-medium text-white bg-green-600 hover:bg-green-700"
+                            title="Add Payment"
+                          >
+                            <IndianRupee className="h-3 w-3 mr-1 text-white" />
+                            Add Payment
+                          </button>
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -421,19 +496,20 @@ export default function PartiesPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end space-x-2">
                         <button
+                          onClick={() => router.push(`/dashboard/parties/${party.id}`)}
+                          className="text-gray-600 hover:text-gray-900 p-1"
+                          title="View Details"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button
                           onClick={() => router.push(`/dashboard/rates/party?partyId=${party.id}`)}
                           className="text-amber-600 hover:text-amber-800 p-1"
                           title="Party Rate Slabs"
                         >
                           <Layers className="h-4 w-4" />
                         </button>
-                        <button
-                          onClick={() => router.push(`/dashboard/parties/${party.id}`)}
-                          className="text-primary-600 hover:text-primary-900 p-1"
-                          title="View Details"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
+                        
                         <button
                           onClick={() => router.push(`/dashboard/parties/${party.id}/edit`)}
                           className="text-indigo-600 hover:text-indigo-900 p-1"
@@ -461,6 +537,71 @@ export default function PartiesPage() {
           </div>
         )}
       </div>
+      {paymentModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-xl overflow-hidden rounded-2xl shadow-2xl border border-white/10">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-primary-600 to-emerald-600 px-6 py-4 text-white">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <IndianRupee className="h-5 w-5" />
+                  <h3 className="text-lg font-semibold">Add Payment</h3>
+                </div>
+                <button className="/text-white/80 hover:text-white" onClick={() => setPaymentModalOpen(false)}>✕</button>
+              </div>
+              <div className="mt-1 text-xs text-white/90">Party: <span className="font-medium">{paymentPartyName}</span></div>
+            </div>
+
+            {/* Body */}
+            <div className="bg-white px-6 py-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-700 mb-1">Date</label>
+                  <div className="relative">
+                    <Calendar className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input type="date" className="w-full border rounded-md pl-9 pr-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" value={paymentDate} onChange={(e)=>setPaymentDate(e.target.value)} />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-700 mb-1">Amount</label>
+                  <div className="relative">
+                    <IndianRupee className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input type="number" min="0" step="0.01" className="w-full border rounded-md pl-9 pr-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" value={paymentAmount} onChange={(e)=>setPaymentAmount(e.target.value)} />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-700 mb-1">Method</label>
+                  <div className="relative">
+                    <CreditCard className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input type="text" className="w-full border rounded-md pl-9 pr-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" value={paymentMethod} onChange={(e)=>setPaymentMethod(e.target.value)} placeholder="NEFT / UPI / CASH" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-700 mb-1">Reference No</label>
+                  <div className="relative">
+                    <Hash className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input type="text" className="w-full border rounded-md pl-9 pr-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" value={paymentRef} onChange={(e)=>setPaymentRef(e.target.value)} />
+                  </div>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm text-gray-700 mb-1">Notes</label>
+                  <div className="relative">
+                    <StickyNote className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input type="text" className="w-full border rounded-md pl-9 pr-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" value={paymentNotes} onChange={(e)=>setPaymentNotes(e.target.value)} placeholder="Optional" />
+                  </div>
+                </div>
+              </div>
+              <div className="mt-6 flex items-center justify-end gap-2">
+                <button className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50" onClick={()=>setPaymentModalOpen(false)} disabled={paymentSaving}>Cancel</button>
+                <button className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-white bg-gradient-to-r from-primary-600 to-emerald-600 hover:from-primary-700 hover:to-emerald-700 disabled:opacity-60" onClick={savePartyPayment} disabled={paymentSaving}>
+                  <IndianRupee className="h-4 w-4" />
+                  {paymentSaving ? 'Saving…' : 'Save Payment'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

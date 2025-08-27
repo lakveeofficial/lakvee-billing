@@ -47,7 +47,16 @@ export default function CompaniesPage() {
 
   useEffect(() => {
     applyFilters()
-  }, [companies, filters])
+  }, [companies, filters, activeCompany])
+
+  // Keep summary in sync with current companies and activeCompany
+  useEffect(() => {
+    const total = Array.isArray(companies) ? companies.length : 0;
+    const active = activeCompany ? 1 : 0;
+    const inactive = Math.max(0, total - active);
+    const currentCompany = activeCompany?.businessName || 'No Company Selected';
+    setSummary({ total, active, inactive, currentCompany });
+  }, [companies, activeCompany]);
 
   const loadData = async () => {
     if (!token) {
@@ -77,15 +86,20 @@ export default function CompaniesPage() {
 
       console.log('Companies response status:', companiesRes.status);
       
+      let localCompanies: any[] = [];
       try {
-        const data = await companiesRes.json();
-        console.log('Companies API Response:', data);
-        
         if (companiesRes.ok) {
-          const companiesData = toCamelCase(data.companies || data);
-          console.log('Processed Companies:', companiesData);
-          setCompanies(Array.isArray(companiesData) ? companiesData : []);
+          const data = await companiesRes.json();
+          if (data && (Array.isArray(data.companies) || Array.isArray(data))) {
+            const list = toCamelCase(data.companies || data);
+            localCompanies = Array.isArray(list) ? list : [];
+            setCompanies(localCompanies);
+            setFilteredCompanies(localCompanies);
+          } else {
+            console.warn('Unexpected companies response shape:', data);
+          }
         } else {
+          const data = await companiesRes.json().catch(() => ({} as any));
           console.error('API Error:', data);
           alert(`Failed to fetch companies: ${data.message || 'Unknown error'}`);
         }
@@ -95,10 +109,24 @@ export default function CompaniesPage() {
         console.error('Raw response:', text);
       }
 
+      let activeDataParsed: any = null;
       if (activeCompanyRes.ok) {
         const activeData = await activeCompanyRes.json();
-        setActiveCompany(toCamelCase(activeData));
+        activeDataParsed = toCamelCase(activeData);
+        setActiveCompany(activeDataParsed);
+      } else {
+        setActiveCompany(null);
       }
+
+      // Compute summary from already parsed payloads
+      try {
+        // Use locally parsed list to avoid relying on async state update timing
+        const total = Array.isArray(localCompanies) ? localCompanies.length : Array.isArray(companies) ? companies.length : 0;
+        const active = activeDataParsed ? 1 : 0;
+        const inactive = Math.max(0, total - active);
+        const currentCompany = activeDataParsed?.businessName || 'No Company Selected';
+        setSummary({ total, active, inactive, currentCompany });
+      } catch {}
 
     } catch (error) {
       console.error('Failed to load company data:', error);
@@ -133,10 +161,10 @@ export default function CompaniesPage() {
       filtered = filtered.filter(company => company.state === filters.state)
     }
 
-    // Active status filter
+    // Active status filter (derive from activeCompany mapping)
     if (filters.isActive !== 'all') {
-      const isActive = filters.isActive === 'active'
-      filtered = filtered.filter(company => company.isActive === isActive)
+      const wantActive = filters.isActive === 'active'
+      filtered = filtered.filter(c => (activeCompany?.id === c.id) === wantActive)
     }
 
     setFilteredCompanies(filtered)
@@ -438,13 +466,16 @@ export default function CompaniesPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="space-y-2">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          company.isActive 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {company.isActive ? 'Active' : 'Inactive'}
-                        </span>
+                        {(() => {
+                          const isActiveNow = activeCompany?.id === company.id
+                          return (
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              isActiveNow ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {isActiveNow ? 'Active' : 'Inactive'}
+                            </span>
+                          )
+                        })()}
                         {activeCompany?.id !== company.id && (
                           <button
                             onClick={() => handleSetActive(company.id)}

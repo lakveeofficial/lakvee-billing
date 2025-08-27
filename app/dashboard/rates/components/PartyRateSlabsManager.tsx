@@ -425,7 +425,7 @@ export default function PartyRateSlabsManager({ partyId }: { partyId?: number })
               <th className="p-2 border text-right">Packing</th>
               <th className="p-2 border text-right">Handling</th>
               <th className="p-2 border text-right">GST%</th>
-              <th className="p-2 border text-left">Actions</th>
+              <th className="p-2 border text-left border-l border-gray-200">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -443,7 +443,7 @@ export default function PartyRateSlabsManager({ partyId }: { partyId?: number })
                 <td className="p-2 border text-right">{Number((r as any).packing || 0).toFixed(2)}</td>
                 <td className="p-2 border text-right">{Number(r.handling || 0).toFixed(2)}</td>
                 <td className="p-2 border text-right">{Number(r.gst_pct || 0).toFixed(2)}</td>
-                <td className="p-2 border space-x-2">
+                <td className="p-2 border space-x-2 border-l border-gray-200">
                   <button className="text-blue-600 hover:underline" onClick={() => onEdit(r)}>Edit</button>
                   <button className="text-red-600 hover:underline" onClick={() => onDelete(r)}>Delete</button>
                   <button className="text-gray-700 hover:underline" onClick={() => loadAudits(r.id)}>Audit</button>
@@ -494,7 +494,7 @@ export default function PartyRateSlabsManager({ partyId }: { partyId?: number })
                   <th className="p-2 border text-left">Distance</th>
                   <th className="p-2 border text-left">Weight Slab</th>
                   <th className="p-2 border text-left">Status</th>
-                  <th className="p-2 border text-left">Action</th>
+                  <th className="p-2 border text-left border-l border-gray-200">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -510,7 +510,7 @@ export default function PartyRateSlabsManager({ partyId }: { partyId?: number })
                         {sc.existing ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td className="p-2 border">
+                    <td className="p-2 border border-l border-gray-200">
                       <button className="text-blue-600 hover:underline" onClick={() => prefillFromScenario(sc)}>
                         {sc.existing ? 'Edit' : 'Add'}
                       </button>

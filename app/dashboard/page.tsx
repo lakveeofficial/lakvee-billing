@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { 
   Users, 
   FileText, 
-  DollarSign, 
+  IndianRupee, 
   TrendingUp,
   Calendar,
   Clock,
@@ -16,21 +16,21 @@ import { useRouter } from 'next/navigation'
 
 interface DashboardStats {
   totalParties: number
-  totalInvoices: number
-  totalSales: number
+  totalInvoicesOverall: number
+  totalInvoicesMonth: number
+  totalSalesMonth: number
   pendingPayments: number
   todayInvoices: number
-  thisMonthSales: number
 }
 
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats>({
     totalParties: 0,
-    totalInvoices: 0,
-    totalSales: 0,
+    totalInvoicesOverall: 0,
+    totalInvoicesMonth: 0,
+    totalSalesMonth: 0,
     pendingPayments: 0,
     todayInvoices: 0,
-    thisMonthSales: 0
   })
   const [recentInvoices, setRecentInvoices] = useState<any[]>([])
   const [loading, setLoading] = useState<boolean>(true)
@@ -69,7 +69,7 @@ export default function Dashboard() {
         }
         
         const partiesJson = await partiesRes.json()
-        const totalParties = partiesJson?.total || 0
+        const totalParties = partiesJson?.pagination?.totalCount || 0
 
         // Invoices - get this month and overall (using reasonable limit)
         const today = new Date()
@@ -95,22 +95,41 @@ export default function Dashboard() {
         }
         
         const invoicesMonthJson = await invoicesMonthRes.json()
-        const thisMonthSales = invoicesMonthJson?.totalAmount || 0
+        const thisMonthSales = Array.isArray(invoicesMonthJson?.data)
+          ? invoicesMonthJson.data.reduce((sum: number, inv: any) => sum + Number(inv.display_total_amount || 0), 0)
+          : 0
+        const pendingMonth = Array.isArray(invoicesMonthJson?.data)
+          ? invoicesMonthJson.data.reduce((sum: number, inv: any) => {
+              const total = Number(inv.display_total_amount || 0)
+              const received = Number(inv.received_amount || 0)
+              const pending = Math.max(total - received, 0)
+              return sum + pending
+            }, 0)
+          : 0
         const todayInvoicesCount = invoicesMonthJson?.data?.filter((inv: any) => 
           inv.invoice_date === dateTo
         ).length || 0
+        const totalInvoicesMonth = invoicesMonthJson?.pagination?.totalCount || 0
 
-        // Get total sales from the API response or calculate from data
-        const totalSales = invoicesMonthJson?.totalAmount || 0
+        // Overall invoices count (no date filters)
+        const invoicesOverallRes = await fetch(`/api/invoices?limit=1&page=1`, {
+          headers,
+          credentials: 'include'
+        })
+        if (!invoicesOverallRes.ok) {
+          throw new Error('Failed to fetch overall invoices')
+        }
+        const invoicesOverallJson = await invoicesOverallRes.json()
+        const totalInvoicesOverall = invoicesOverallJson?.pagination?.totalCount || 0
         
         // Update stats
         setStats({
           totalParties,
-          totalInvoices: invoicesMonthJson?.total || 0,
-          totalSales,
-          pendingPayments: 0, // You'll need to implement this
+          totalInvoicesOverall,
+          totalInvoicesMonth: totalInvoicesMonth,
+          totalSalesMonth: thisMonthSales,
+          pendingPayments: pendingMonth,
           todayInvoices: todayInvoicesCount,
-          thisMonthSales: thisMonthSales
         })
 
         // Get recent invoices
@@ -131,7 +150,14 @@ export default function Dashboard() {
         if (err instanceof Error && err.message.includes('401')) {
           router.push('/')
         }
-        setStats({ totalParties: 0, totalInvoices: 0, totalSales: 0, pendingPayments: 0, todayInvoices: 0, thisMonthSales: 0 })
+        setStats({ 
+          totalParties: 0, 
+          totalInvoicesOverall: 0, 
+          totalInvoicesMonth: 0, 
+          totalSalesMonth: 0, 
+          pendingPayments: 0, 
+          todayInvoices: 0 
+        })
         setRecentInvoices([])
       } finally {
         setLoading(false)
@@ -157,21 +183,28 @@ export default function Dashboard() {
       href: '/dashboard/parties'
     },
     {
-      name: 'Total Invoices',
-      value: stats.totalInvoices,
+      name: 'Total Invoices (Overall)',
+      value: stats.totalInvoicesOverall,
       icon: FileText,
       color: 'from-emerald-500 to-green-400',
       href: '/dashboard/invoices'
     },
     {
-      name: 'Total Sales',
-      value: formatCurrency(stats.totalSales),
-      icon: DollarSign,
+      name: 'This Month Invoices',
+      value: stats.totalInvoicesMonth,
+      icon: CheckCircle,
+      color: 'from-indigo-500 to-blue-500',
+      href: '/dashboard/invoices?dateRange=month'
+    },
+    {
+      name: 'This Month Sales',
+      value: formatCurrency(stats.totalSalesMonth),
+      icon: IndianRupee,
       color: 'from-purple-500 to-fuchsia-500',
       href: '/dashboard/reports'
     },
     {
-      name: 'Pending Payments',
+      name: 'Pending (This Month)',
       value: formatCurrency(stats.pendingPayments),
       icon: AlertCircle,
       color: 'from-rose-500 to-orange-500',

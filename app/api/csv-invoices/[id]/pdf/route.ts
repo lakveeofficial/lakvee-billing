@@ -7,7 +7,32 @@ import { getUserFromRequest } from '@/lib/auth'
 function inr(amount: any) {
   const n = Number(amount)
   if (!isFinite(n)) return ''
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(n)
+  // Use ASCII-safe currency label for PDF to avoid unsupported glyphs (₹) in core fonts
+  return 'INR ' + new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
+}
+
+// Safely compute GST-inclusive total from a rate_breakup object. If rb.total
+// is missing or less than subtotal+gst (common data issue), we compute
+// subtotal and gst from the available fields and return subtotal + gst.
+function computeGSTInclusiveTotalFromRB(rb: any): number {
+  try {
+    const b = Number(rb?.base || 0)
+    const f = Number(rb?.fuel || 0)
+    const p = Number(rb?.packing || 0)
+    const h = Number(rb?.handling || 0)
+    const st = Number(rb?.subtotal)
+    const subtotal = isFinite(st) && st > 0 ? st : (b + f + p + h)
+    const gp = Number(rb?.gstPct ?? rb?.gst_pct)
+    const gstPct = isFinite(gp) && gp > 0 ? gp : 18
+    const gField = Number(rb?.gst)
+    const gst = isFinite(gField) && gField > 0 ? gField : +(subtotal * gstPct / 100).toFixed(2)
+    const inferredTotal = +(subtotal + gst).toFixed(2)
+    const t = Number(rb?.total)
+    if (isFinite(t) && t >= inferredTotal - 0.01) return +t.toFixed(2)
+    return inferredTotal
+  } catch {
+    return 0
+  }
 }
 
 async function toDataUrlIfNeeded(src: string | null | undefined, baseOrigin: string): Promise<string | null> {
@@ -70,6 +95,35 @@ function numberToWordsINR(amount: number) {
   const r = toWords(rupees) + ' Rupees'
   const p = paise ? ' and ' + toWords(paise) + ' Paisa' : ''
   return (r + p + ' only').replace(/\s+/g, ' ').trim()
+}
+
+// Extract a plausible city name from a free-form address string
+function extractCityFromAddress(addr: string | null | undefined): string {
+  const raw = (addr ?? '').toString().trim()
+  if (!raw) return ''
+  const parts = raw.split(',').map(p => p.trim()).filter(Boolean)
+  if (!parts.length) return ''
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const token = parts[i]
+    const hasAlpha = /[A-Za-z]/.test(token)
+    const isPincodeLike = /\b\d{5,6}\b/.test(token)
+    if (hasAlpha && !isPincodeLike) {
+      const cleaned = token.replace(/[-–,]*\s*(India|IN)$/i, '').trim()
+      return cleaned
+    }
+  }
+  return parts[0]
+}
+
+function distanceDisplay(region: string | null | undefined, recipientAddress: string | null | undefined): string {
+  const r = (region ?? '').toString().trim().toLowerCase()
+  // Handle variants like 'within state', 'within', 'metro', 'other state', 'out of state'
+  const isCityCategory = /(^|\b)(within|metro|other\s*state|out\s*of\s*state)(\b|$)/.test(r)
+  if (isCityCategory) {
+    const city = extractCityFromAddress(recipientAddress)
+    return city || (region ?? '')
+  }
+  return (region ?? '')
 }
 
 // Load LakVee public logo as data URL for watermark
@@ -234,12 +288,17 @@ function drawSalesTemplate(doc: jsPDF, company: any, row: any) {
   doc.text(String(row.recipient_address || ''), rcolX, py + 36, { maxWidth: 230 })
   y += 70 + 16
 
-  // Amounts table: base + slab
+  // Amounts table: prefer GST-inclusive total computed from pricing_meta if available
   const baseAmt = Number(row.retail_price ?? row.final_collected ?? 0)
   const slabAmt = Number((row as any).calculated_amount ?? 0)
   const total = (isFinite(baseAmt) ? baseAmt : 0) + (isFinite(slabAmt) ? slabAmt : 0)
-  const received = Number(row.final_collected ?? 0)
-  const balance = total - received
+  const rbMetaEarly: any = ((row as any).pricing_meta || {})
+  const gstInclusiveTotalEarly = (rbMetaEarly && rbMetaEarly.rate_breakup)
+    ? computeGSTInclusiveTotalFromRB(rbMetaEarly.rate_breakup)
+    : 0
+  const displayTotal = isFinite(gstInclusiveTotalEarly) && gstInclusiveTotalEarly > 0 ? gstInclusiveTotalEarly : total
+  const received = Number(row.received_amount ?? 0)
+  const displayBalance = displayTotal - received
   doc.setFont('helvetica', 'bold'); doc.text('Amounts', left, y)
   y += 6
   doc.setDrawColor(0)
@@ -268,9 +327,9 @@ function drawSalesTemplate(doc: jsPDF, company: any, row: any) {
   doc.line(cols[2], r2Top, cols[2], r2Top + rowH)
   doc.line(cols[3], r2Top, cols[3], r2Top + rowH)
   doc.setFont('helvetica', 'normal')
-  doc.text(inr(total), cols[0] + 8, r2Top + 15)
+  doc.text(inr(displayTotal), cols[0] + 8, r2Top + 15)
   doc.text(inr(received), cols[1] + 8, r2Top + 15)
-  doc.text(inr(balance), cols[2] + 8, r2Top + 15)
+  doc.text(inr(displayBalance), cols[2] + 8, r2Top + 15)
 
   // Footer notes
   doc.setFontSize(9)
@@ -297,7 +356,7 @@ function drawSalesTemplate(doc: jsPDF, company: any, row: any) {
     const g = Number(rb.gst || (st * gp / 100))
     const sg = +(g / 2).toFixed(2)
     const cg = +(g - sg).toFixed(2)
-    const tt = Number(rb.total || (st + g))
+    const tt = computeGSTInclusiveTotalFromRB(rb)
     salesBreakdownTotal = tt
     const sbLeft = left
     const sbTop = yAfter
@@ -318,15 +377,15 @@ function drawSalesTemplate(doc: jsPDF, company: any, row: any) {
       doc.text(value, svalueX, sy, { align: 'right' as any })
       sy += sbLH
     }
-    put('Base Rate', `Rs. ${inrNumber(b)}`)
-    put(`Fuel (${inrNumber(fp)}%)`, `Rs. ${inrNumber(f)}`)
-    put('Packing', `Rs. ${inrNumber(p)}`)
-    put('Handling', `Rs. ${inrNumber(h)}`)
-    put('Subtotal', `Rs. ${inrNumber(st)}`)
-    put(`SGST (${inrNumber(gp/2)}%)`, `Rs. ${inrNumber(sg)}`)
-    put(`CGST (${inrNumber(gp/2)}%)`, `Rs. ${inrNumber(cg)}`)
+    put('Base Rate', `INR ${inrNumber(b)}`)
+    put(`Fuel (${inrNumber(fp)}%)`, `INR ${inrNumber(f)}`)
+    put('Packing', `INR ${inrNumber(p)}`)
+    put('Handling', `INR ${inrNumber(h)}`)
+    put('Subtotal', `INR ${inrNumber(st)}`)
+    put(`SGST (${inrNumber(gp/2)}%)`, `INR ${inrNumber(sg)}`)
+    put(`CGST (${inrNumber(gp/2)}%)`, `INR ${inrNumber(cg)}`)
     doc.setFont('courier', 'bold')
-    put('Total', `Rs. ${inrNumber(tt)}`)
+    put('Total', `INR ${inrNumber(tt)}`)
     doc.setFont('courier', 'normal')
     yAfter = sbTop + (sbLH * 8 + 24) + 24
   }
@@ -382,7 +441,7 @@ function drawCourierAryanTemplate(doc: jsPDF, company: any, row: any) {
     `Shipment Type: ${String(row.shipment_type || '')}`,
     `Mode: ${String(row.mode || '')}`,
     `Service Type: ${String(row.service_type || '')}`,
-    `Place Of Supply: ${String(row.region || row.destination || '')}`,
+    `Place Of Supply: ${String(distanceDisplay((row.region || row.destination || '') as any, row.recipient_address))}`,
   ]
   details.forEach((t) => { doc.text(t, rightBoxX + 8, iy); iy += 12 })
 
@@ -429,7 +488,7 @@ function drawCourierAryanTemplate(doc: jsPDF, company: any, row: any) {
   const padX = 6
   const cellLineH = 12
   const itemText = doc.splitTextToSize(String(row.consignment_no || row.booking_reference || '-'), (cols[2] - cols[1]) - padX*2)
-  const destText = doc.splitTextToSize(String(row.destination || row.region || ''), (cols[4] - cols[3]) - padX*2)
+  const destText = doc.splitTextToSize(String(distanceDisplay((row.region || row.destination || '') as any, row.recipient_address)), (cols[4] - cols[3]) - padX*2)
   const linesCount = Math.max(itemText.length || 1, destText.length || 1)
   const dataRowH = Math.max(rowH, 14 + (linesCount - 1) * cellLineH)
   // Draw borders for data row
@@ -477,7 +536,7 @@ function drawCourierAryanTemplate(doc: jsPDF, company: any, row: any) {
     const g = Number(rb.gst || (st * gp / 100))
     const sg = +(g / 2).toFixed(2)
     const cg = +(g - sg).toFixed(2)
-    const tt = Number(rb.total || (st + g))
+    const tt = computeGSTInclusiveTotalFromRB(rb)
     breakdownTotal = tt
     // Box - placed below Payment Mode
     const sbLeft = left
@@ -499,15 +558,15 @@ function drawCourierAryanTemplate(doc: jsPDF, company: any, row: any) {
       doc.text(value, svalueX, sy, { align: 'right' as any })
       sy += sbLH
     }
-    put('Base Rate', `Rs. ${inrNumber(b)}`)
-    put(`Fuel (${inrNumber(fp)}%)`, `Rs. ${inrNumber(f)}`)
-    put('Packing', `Rs. ${inrNumber(p)}`)
-    put('Handling', `Rs. ${inrNumber(h)}`)
-    put('Subtotal', `Rs. ${inrNumber(st)}`)
-    put(`SGST (${inrNumber(gp/2)}%)`, `Rs. ${inrNumber(sg)}`)
-    put(`CGST (${inrNumber(gp/2)}%)`, `Rs. ${inrNumber(cg)}`)
+    put('Base Rate', `INR ${inrNumber(b)}`)
+    put(`Fuel (${inrNumber(fp)}%)`, `INR ${inrNumber(f)}`)
+    put('Packing', `INR ${inrNumber(p)}`)
+    put('Handling', `INR ${inrNumber(h)}`)
+    put('Subtotal', `INR ${inrNumber(st)}`)
+    put(`SGST (${inrNumber(gp/2)}%)`, `INR ${inrNumber(sg)}`)
+    put(`CGST (${inrNumber(gp/2)}%)`, `INR ${inrNumber(cg)}`)
     doc.setFont('courier', 'bold')
-    put('Total', `Rs. ${inrNumber(tt)}`)
+    put('Total', `INR ${inrNumber(tt)}`)
     doc.setFont('courier', 'normal')
   }
 
@@ -550,7 +609,7 @@ function drawTemplate(doc: jsPDF, tpl: string, company: any, row: any) {
     ['Shipment Type', String(row.shipment_type || '')],
     ['Mode', String(row.mode || '')],
     ['Service Type', String(row.service_type || '')],
-    ['Place Of Supply', String(row.region || row.destination || '')],
+    ['Place Of Supply', String(distanceDisplay((row.region || row.destination || '') as any, row.recipient_address))],
     ['Consignment No', String(row.consignment_no || '')],
     ['Booking Ref', String(row.booking_reference || '')],
   ]
@@ -596,15 +655,15 @@ function drawTemplate(doc: jsPDF, tpl: string, company: any, row: any) {
       doc.text(value, svalueX, sy, { align: 'right' as any })
       sy += sbLH
     }
-    put('Base Rate', `Rs. ${inrNumber(b)}`)
-    put(`Fuel (${inrNumber(fp)}%)`, `Rs. ${inrNumber(f)}`)
-    put('Packing', `Rs. ${inrNumber(p)}`)
-    put('Handling', `Rs. ${inrNumber(h)}`)
-    put('Subtotal', `Rs. ${inrNumber(st)}`)
-    put(`SGST (${inrNumber(gp/2)}%)`, `Rs. ${inrNumber(sg)}`)
-    put(`CGST (${inrNumber(gp/2)}%)`, `Rs. ${inrNumber(cg)}`)
+    put('Base Rate', `₹ ${inrNumber(b)}`)
+    put(`Fuel (${inrNumber(fp)}%)`, `₹ ${inrNumber(f)}`)
+    put('Packing', `₹ ${inrNumber(p)}`)
+    put('Handling', `₹ ${inrNumber(h)}`)
+    put('Subtotal', `₹ ${inrNumber(st)}`)
+    put(`SGST (${inrNumber(gp/2)}%)`, `₹ ${inrNumber(sg)}`)
+    put(`CGST (${inrNumber(gp/2)}%)`, `₹ ${inrNumber(cg)}`)
     doc.setFont('courier', 'bold')
-    put('Total', `Rs. ${inrNumber(tt)}`)
+    put('Total', `₹ ${inrNumber(tt)}`)
     doc.setFont('courier', 'normal')
     y = sbTop + (sbLH * 8 + 24) + 24
   }
@@ -617,15 +676,18 @@ function drawTemplate(doc: jsPDF, tpl: string, company: any, row: any) {
   doc.text(`Recipient: ${row.recipient_name || ''} | ${row.recipient_phone || ''}`, left, y)
   y += 20
 
-  // Amount summary: base + slab
+  // Amount summary: prefer GST-inclusive total from pricing_meta if available
   const baseAmt3 = Number(row.retail_price ?? row.final_collected ?? 0)
   const slabAmt3 = Number((row as any).calculated_amount ?? 0)
   const total = (isFinite(baseAmt3) ? baseAmt3 : 0) + (isFinite(slabAmt3) ? slabAmt3 : 0)
-  const received = Number(row.final_collected ?? 0)
-  const balance = total - received
+  const pmetaEarly: any = ((row as any).pricing_meta || {})
+  const gstInclusiveTotalDefault = (pmetaEarly && pmetaEarly.rate_breakup) ? Number(pmetaEarly.rate_breakup.total || 0) : 0
+  const displayTotalDefault = isFinite(gstInclusiveTotalDefault) && gstInclusiveTotalDefault > 0 ? gstInclusiveTotalDefault : total
+  const received = Number(row.received_amount ?? 0)
+  const displayBalanceDefault = displayTotalDefault - received
   doc.setFont('helvetica', 'bold'); doc.text('Amounts', left, y)
   y += 14; doc.setFont('helvetica', 'normal')
-  doc.text(`Total: ${inr(total)}  |  Received: ${inr(received)}  |  Balance: ${inr(balance)}`, left, y)
+  doc.text(`Total: ${inr(displayTotalDefault)}  |  Received: ${inr(received)}  |  Balance: ${inr(displayBalanceDefault)}`, left, y)
   // Slab note
   if (isFinite(slabAmt3) && slabAmt3 > 0) {
     y += 14
@@ -666,6 +728,16 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       console.error('Invoice not found:', params.id);
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
+
+    // If linked to an invoice, fetch its received_amount to use in Received/Balance
+    try {
+      if (row.invoice_id) {
+        const invRes = await db.query('SELECT received_amount FROM invoices WHERE id = $1', [row.invoice_id])
+        if (invRes && typeof invRes.rowCount === 'number' && invRes.rowCount > 0) {
+          (row as any).received_amount = invRes.rows[0]?.received_amount ?? 0
+        }
+      }
+    } catch {}
 
     console.log('Fetching company data...');
     const company = await getAnyActiveCompany();

@@ -14,17 +14,19 @@ import {
   Phone,
   Mail,
   FileText,
-  DollarSign
+  IndianRupee
 } from 'lucide-react'
 import { Invoice } from '@/types/invoice'
 import PageHeader from '@/components/PageHeader'
 import ConfirmDialog from '@/components/ConfirmDialog'
+import QuickReceiveModal from './QuickReceiveModal'
 
 export default function InvoiceDetailsPage() {
   const [invoice, setInvoice] = useState<Invoice | null>(null)
   const [loading, setLoading] = useState(true)
   const [companyLogo, setCompanyLogo] = useState<string>('')
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [receiveOpen, setReceiveOpen] = useState(false)
   const router = useRouter()
   const params = useParams()
   const id = params.id as string
@@ -254,6 +256,14 @@ export default function InvoiceDetailsPage() {
               >
                 <Edit className="h-4 w-4 mr-2 text-indigo-200" />
                 Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => setReceiveOpen(true)}
+                className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-white bg-green-600/80 hover:bg-green-600 border border-white/20 transition-colors"
+              >
+                <IndianRupee className="h-4 w-4 mr-2 text-white" />
+                Receive Payment
               </button>
               <button
                 type="button"
@@ -529,6 +539,15 @@ export default function InvoiceDetailsPage() {
         destructive
         onConfirm={performDelete}
         onCancel={() => setDeleteDialogOpen(false)}
+      />
+      <QuickReceiveModal
+        isOpen={receiveOpen}
+        onClose={() => setReceiveOpen(false)}
+        invoiceId={Number(invoice.id)}
+        partyId={Number(invoice.customer.id)}
+        totalAmount={Number(invoice.totalAmount)}
+        receivedAmount={Number(invoice.receivedAmount)}
+        onSaved={async () => { await loadInvoice() }}
       />
     </div>
   )

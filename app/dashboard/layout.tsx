@@ -168,15 +168,15 @@ function SidebarContent({
               className={`${
                 item.current
                   ? 'bg-primary-100 text-primary-900'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              } group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors duration-150`}
+                  : 'text-gray-700'
+              } hover:bg-primary-900 hover:!text-white group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors duration-150`}
             >
               <item.icon
                 className={`${
-                  item.current ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'
+                  item.current ? 'text-primary-500' : 'text-gray-400 group-hover:text-white'
                 } mr-3 flex-shrink-0 h-5 w-5`}
               />
-              {item.name}
+              <span className="transition-colors group-hover:!text-white">{item.name}</span>
             </a>
             {Array.isArray(item.children) && item.children.length > 0 && (
               <div className="ml-7 mt-1 space-y-1">
@@ -184,10 +184,10 @@ function SidebarContent({
                   <a
                     key={child.name}
                     href={child.href}
-                    className="text-gray-600 hover:bg-gray-50 hover:text-gray-900 group flex items-center px-2 py-1.5 text-sm rounded-md"
+                    className="text-gray-700 hover:bg-primary-900 hover:!text-white group flex items-center px-2 py-1.5 text-sm rounded-md transition-colors duration-150"
                   >
-                    <child.icon className="text-gray-400 mr-3 h-4 w-4" />
-                    {child.name}
+                    <child.icon className="text-gray-400 group-hover:text-white mr-3 h-4 w-4 transition-colors duration-150" />
+                    <span className="transition-colors group-hover:!text-white">{child.name}</span>
                   </a>
                 ))}
               </div>
@@ -200,9 +200,9 @@ function SidebarContent({
       <div className="flex-shrink-0 border-t border-gray-200 p-4">
         <button
           onClick={onLogout}
-          className="group flex items-center px-2 py-2 text-sm font-medium rounded-md text-gray-600 hover:bg-gray-50 hover:text-gray-900 w-full transition-colors duration-150"
+          className="group flex items-center px-2 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-primary-900 hover:text-white w-full transition-colors duration-150"
         >
-          <LogOut className="text-gray-400 group-hover:text-gray-500 mr-3 flex-shrink-0 h-5 w-5" />
+          <LogOut className="text-gray-400 group-hover:text-white mr-3 flex-shrink-0 h-5 w-5 transition-colors duration-150" />
           Sign out
         </button>
       </div>

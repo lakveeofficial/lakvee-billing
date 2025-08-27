@@ -137,7 +137,7 @@ export default function WeightSlabsManager() {
               <th className="text-left p-2 border">Min (g)</th>
               <th className="text-left p-2 border">Max (g)</th>
               <th className="text-left p-2 border">Active</th>
-              <th className="text-left p-2 border">Actions</th>
+              <th className="text-left p-2 border border-l border-gray-200">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -153,7 +153,7 @@ export default function WeightSlabsManager() {
                 <td className="p-2 border">{row.min_weight_grams}</td>
                 <td className="p-2 border">{row.max_weight_grams}</td>
                 <td className="p-2 border">{row.is_active ? 'Yes' : 'No'}</td>
-                <td className="p-2 border">
+                <td className="p-2 border border-l border-gray-200">
                   <button className="px-2 py-1 text-blue-600 hover:underline" onClick={() => onEdit(row)}>Edit</button>
                 </td>
               </tr>
