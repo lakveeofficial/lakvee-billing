@@ -137,14 +137,49 @@ export async function POST() {
       FOR EACH ROW EXECUTE FUNCTION set_updated_at();
     EXCEPTION WHEN duplicate_object THEN null; END $$;`)
 
-    // Seed masters
-    sql.push(`INSERT INTO modes(code, title) VALUES
-      ('AIR','Air'),('SURFACE','Surface')
-      ON CONFLICT (code) DO NOTHING;`)
+    // Seed modes aligned with shipment types (DOCUMENT / NON_DOCUMENT)
+    sql.push(`INSERT INTO modes(code, title, is_active) VALUES
+      ('DOCUMENT','Document', TRUE),
+      ('NON_DOCUMENT','Non Document', TRUE)
+      ON CONFLICT (code) DO UPDATE SET
+        title = EXCLUDED.title,
+        is_active = TRUE,
+        updated_at = now();`)
 
-    sql.push(`INSERT INTO service_types(code, title) VALUES
-      ('EXPRESS','Express'),('STANDARD','Standard'),('PREMIUM','Premium')
-      ON CONFLICT (code) DO NOTHING;`)
+    // Upsert Service Types to the exact requested list and deactivate others
+    sql.push(`
+      INSERT INTO service_types(code, title, is_active) VALUES
+        ('AIR_CARGO','Air Cargo', TRUE),
+        ('B2C_PRIORITY','B2C Priority', TRUE),
+        ('B2C_SMART_EXPRESS','B2C SMART EXPRESS', TRUE),
+        ('EXPRESS','EXPRESS', TRUE),
+        ('GROUND_EXPRESS','Ground Express', TRUE),
+        ('PREMIUM','PREMIUM', TRUE),
+        ('STD_EXP_A','STD EXP-A', TRUE),
+        ('STD_EXP_S','STD EXP-S', TRUE),
+        ('SURFACE_EXPRESS','SURFACE EXPRESS', TRUE)
+      ON CONFLICT (code) DO UPDATE SET
+        title = EXCLUDED.title,
+        is_active = TRUE,
+        updated_at = now();
+    `)
+
+    // Deactivate any service types not in the new list to avoid showing legacy options
+    sql.push(`
+      UPDATE service_types
+      SET is_active = FALSE, updated_at = now()
+      WHERE code NOT IN (
+        'AIR_CARGO',
+        'B2C_PRIORITY',
+        'B2C_SMART_EXPRESS',
+        'EXPRESS',
+        'GROUND_EXPRESS',
+        'PREMIUM',
+        'STD_EXP_A',
+        'STD_EXP_S',
+        'SURFACE_EXPRESS'
+      );
+    `)
 
     sql.push(`INSERT INTO distance_slabs(code, title) VALUES
       ('METRO_CITIES','Metro Cities'),('WITHIN_STATE','Within State'),('OUT_OF_STATE','Out of State'),('OTHER_STATE','Other State')
@@ -162,9 +197,23 @@ export async function POST() {
       ('Ahmedabad','GJ')
       ON CONFLICT (city) DO NOTHING;`)
 
-    // Optional: starter neighbors (minimal; editable via UI later)
-    // Example pairs (bidirectional should be inserted explicitly by admin later as needed)
-    // This keeps seed light-weight.
+    // Seed common neighboring states (bidirectional)
+    sql.push(`
+      INSERT INTO state_neighbors(state_code, neighbor_state_code) VALUES
+        ('MP','UP'),('UP','MP'),
+        ('MP','MH'),('MH','MP'),
+        ('MP','RJ'),('RJ','MP'),
+        ('MP','CG'),('CG','MP'),
+        ('MP','GJ'),('GJ','MP'),
+        ('UP','RJ'),('RJ','UP'),
+        ('UP','HR'),('HR','UP'),
+        ('UP','DL'),('DL','UP'),
+        ('TS','AP'),('AP','TS'),
+        ('TS','KA'),('KA','TS'),
+        ('TS','MH'),('MH','TS'),
+        ('GJ','MH'),('MH','GJ')
+      ON CONFLICT (state_code, neighbor_state_code) DO NOTHING;
+    `)
 
     sql.push(`INSERT INTO weight_slabs(slab_name, min_weight_grams, max_weight_grams) VALUES
       ('0-100g',0,100),

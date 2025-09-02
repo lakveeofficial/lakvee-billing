@@ -16,7 +16,7 @@ type AuditLog = {
   changed_at: string
 }
 
-const SHIPMENT_TYPES: ShipmentType[] = ['DOCUMENT', 'NON_DOCUMENT']
+// Shipment field is hidden; shipment is inferred from selected Mode's code (DOCUMENT / NON_DOCUMENT)
 
 export default function PartyRateSlabsManager({ partyId }: { partyId?: number }) {
   const [modes, setModes] = useState<Mode[]>([])
@@ -31,7 +31,8 @@ export default function PartyRateSlabsManager({ partyId }: { partyId?: number })
   const [showAllScenarios, setShowAllScenarios] = useState(false)
 
   const [form, setForm] = useState<Partial<PartyRateSlab>>({
-    shipment_type: 'DOCUMENT',
+    // shipment_type is derived from selected mode
+    shipment_type: undefined,
     mode_id: undefined,
     service_type_id: undefined,
     distance_slab_id: undefined,
@@ -47,13 +48,22 @@ export default function PartyRateSlabsManager({ partyId }: { partyId?: number })
   // Resolve party id used by the form
   const effectivePartyId = useMemo(() => (typeof partyId === 'number' && Number.isFinite(partyId)) ? partyId : undefined, [partyId])
 
+  const inferShipmentFromMode = (modeId?: number): ShipmentType | undefined => {
+    if (!modeId) return undefined
+    const m = modes.find(x => Number(x.id) === Number(modeId))
+    const code = (m?.code || '').toUpperCase()
+    if (code === 'DOCUMENT') return 'DOCUMENT'
+    if (code === 'NON_DOCUMENT' || code === 'NONDOCUMENT' || code === 'NON-DOCUMENT') return 'NON_DOCUMENT'
+    return undefined
+  }
+
   const isValid = useMemo(() => {
     if (!effectivePartyId) return false
-    if (!form.shipment_type) return false
     if (!form.mode_id || !form.service_type_id || !form.distance_slab_id || !form.slab_id) return false
+    if (!inferShipmentFromMode(form.mode_id)) return false
     if (form.rate == null) return false
     return true
-  }, [form, effectivePartyId])
+  }, [form, effectivePartyId, modes])
 
   // Build all possible scenarios (cartesian product) for current masters
   const scenarios = useMemo(() => {
@@ -65,28 +75,28 @@ export default function PartyRateSlabsManager({ partyId }: { partyId?: number })
       slab_id: number
       existing?: PartyRateSlab
     }> = []
-    for (const ship of SHIPMENT_TYPES) {
-      for (const m of modes) {
-        for (const s of services) {
-          for (const d of distances) {
-            for (const w of slabs) {
-              const existing = rows.find(r => (
-                String(r.shipment_type) === String(ship) &&
-                Number(r.mode_id) === Number(m.id) &&
-                Number(r.service_type_id) === Number(s.id) &&
-                Number(r.distance_slab_id) === Number(d.id) &&
-                Number(r.slab_id) === Number(w.id) &&
-                r.is_active !== false
-              ))
-              combos.push({
-                shipment_type: ship,
-                mode_id: m.id,
-                service_type_id: s.id,
-                distance_slab_id: d.id,
-                slab_id: w.id,
-                existing,
-              })
-            }
+    for (const m of modes) {
+      const ship = inferShipmentFromMode(m.id)
+      if (!ship) continue
+      for (const s of services) {
+        for (const d of distances) {
+          for (const w of slabs) {
+            const existing = rows.find(r => (
+              String(r.shipment_type) === String(ship) &&
+              Number(r.mode_id) === Number(m.id) &&
+              Number(r.service_type_id) === Number(s.id) &&
+              Number(r.distance_slab_id) === Number(d.id) &&
+              Number(r.slab_id) === Number(w.id) &&
+              r.is_active !== false
+            ))
+            combos.push({
+              shipment_type: ship,
+              mode_id: m.id,
+              service_type_id: s.id,
+              distance_slab_id: d.id,
+              slab_id: w.id,
+              existing,
+            })
           }
         }
       }
@@ -214,15 +224,16 @@ export default function PartyRateSlabsManager({ partyId }: { partyId?: number })
       const rate = toNum((form as any).rate)
 
       // Client-side required validation mirroring API
-      if (!effectivePartyId || !form.shipment_type || !modeId || !serviceTypeId || !distanceSlabId || !slabId || rate == null) {
-        setError('Please fill all required fields: Shipment Type, Mode, Service Type, Distance Slab, Weight Slab, and Rate. (Party context missing)')
+      const inferredShipment = inferShipmentFromMode(modeId)
+      if (!effectivePartyId || !inferredShipment || !modeId || !serviceTypeId || !distanceSlabId || !slabId || rate == null) {
+        setError('Please fill all required fields: Mode, Service Type, Distance Slab, Weight Slab, and Rate. (Party context missing)')
         setLoading(false)
         return
       }
       // If a row with same unique key exists, convert to update by setting id
       const existing = rows.find((r: any) => (
         Number(r.party_id) === Number(effectivePartyId) &&
-        String(r.shipment_type) === String(form.shipment_type) &&
+        String(r.shipment_type) === String(inferredShipment) &&
         Number(r.mode_id) === Number(modeId) &&
         Number(r.service_type_id) === Number(serviceTypeId) &&
         Number(r.distance_slab_id) === Number(distanceSlabId) &&
@@ -233,7 +244,7 @@ export default function PartyRateSlabsManager({ partyId }: { partyId?: number })
         id: (form as any).id || existing?.id,
         // Required camelCase fields expected by API
         partyId: effectivePartyId,
-        shipmentType: form.shipment_type,
+        shipmentType: inferredShipment,
         modeId,
         serviceTypeId,
         distanceSlabId,
@@ -261,7 +272,7 @@ export default function PartyRateSlabsManager({ partyId }: { partyId?: number })
         try { const j = await res.json(); serverMsg = j?.error || j?.message || '' } catch {}
         throw new Error(serverMsg || `Save failed: ${res.status}`)
       }
-      setForm({ shipment_type: 'DOCUMENT', fuel_pct: 0, packing: 0, handling: 0, gst_pct: 0, is_active: true })
+      setForm({ shipment_type: undefined, fuel_pct: 0, packing: 0, handling: 0, gst_pct: 0, is_active: true })
       // lightweight success feedback
       try { console.info('Party rate slab saved successfully') } catch {}
       await loadRows()
@@ -329,13 +340,6 @@ export default function PartyRateSlabsManager({ partyId }: { partyId?: number })
 
       {/* Form */}
       <form onSubmit={onSubmit} className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end border rounded p-3">
-        <div className="flex flex-col">
-          <label className="text-xs text-gray-600">Shipment</label>
-          <select className="border rounded px-2 py-1" value={form.shipment_type}
-            onChange={(e) => setForm((f) => ({ ...f, shipment_type: e.target.value as ShipmentType }))}>
-            {SHIPMENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </div>
         <div className="flex flex-col">
           <label className="text-xs text-gray-600">Mode</label>
           <select className="border rounded px-2 py-1" value={form.mode_id ?? ''}
@@ -415,7 +419,6 @@ export default function PartyRateSlabsManager({ partyId }: { partyId?: number })
         <table className="w-full text-sm border">
           <thead className="bg-gray-50">
             <tr>
-              <th className="p-2 border text-left">Shipment</th>
               <th className="p-2 border text-left">Mode</th>
               <th className="p-2 border text-left">Service</th>
               <th className="p-2 border text-left">Distance</th>
@@ -429,11 +432,10 @@ export default function PartyRateSlabsManager({ partyId }: { partyId?: number })
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td className="p-2 border" colSpan={11}>Loading…</td></tr>}
-            {!loading && rows.length === 0 && <tr><td className="p-2 border" colSpan={11}>No mappings found</td></tr>}
+            {loading && <tr><td className="p-2 border" colSpan={10}>Loading…</td></tr>}
+            {!loading && rows.length === 0 && <tr><td className="p-2 border" colSpan={10}>No mappings found</td></tr>}
             {rows.map((r) => (
               <tr key={r.id} className="odd:bg-white even:bg-gray-50">
-                <td className="p-2 border">{r.shipment_type}</td>
                 <td className="p-2 border">{modes.find((m) => m.id === r.mode_id)?.title || r.mode_id}</td>
                 <td className="p-2 border">{services.find((s) => s.id === r.service_type_id)?.title || r.service_type_id}</td>
                 <td className="p-2 border">{distances.find((d) => d.id === r.distance_slab_id)?.title || r.distance_slab_id}</td>
@@ -488,7 +490,6 @@ export default function PartyRateSlabsManager({ partyId }: { partyId?: number })
             <table className="w-full text-xs">
               <thead className="bg-gray-50 sticky top-0">
                 <tr>
-                  <th className="p-2 border text-left">Shipment</th>
                   <th className="p-2 border text-left">Mode</th>
                   <th className="p-2 border text-left">Service</th>
                   <th className="p-2 border text-left">Distance</th>
@@ -500,7 +501,6 @@ export default function PartyRateSlabsManager({ partyId }: { partyId?: number })
               <tbody>
                 {scenarios.map((sc, idx) => (
                   <tr key={`${sc.shipment_type}-${sc.mode_id}-${sc.service_type_id}-${sc.distance_slab_id}-${sc.slab_id}-${idx}`} className="odd:bg-white even:bg-gray-50">
-                    <td className="p-2 border">{sc.shipment_type}</td>
                     <td className="p-2 border">{modes.find(m => m.id === sc.mode_id)?.title || sc.mode_id}</td>
                     <td className="p-2 border">{services.find(s => s.id === sc.service_type_id)?.title || sc.service_type_id}</td>
                     <td className="p-2 border">{distances.find(d => d.id === sc.distance_slab_id)?.title || sc.distance_slab_id}</td>

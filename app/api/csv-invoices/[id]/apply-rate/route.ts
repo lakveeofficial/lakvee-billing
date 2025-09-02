@@ -11,10 +11,10 @@ function toGrams(weightKg?: any, chargeableKg?: any): number | null {
   return null
 }
 
-function toEnumShipmentType(s?: string | null): 'DOCUMENT' | 'NON_DOCUMENT' {
-  const v = String(s || '').trim().toUpperCase()
-  // Treat common synonyms/prefixes as DOCUMENT
-  if (v === 'DOCUMENT' || v.startsWith('DOC')) return 'DOCUMENT'
+function inferShipmentFromModeCode(modeCode?: string | null): 'DOCUMENT' | 'NON_DOCUMENT' {
+  const v = String(modeCode || '').trim().toUpperCase()
+  // Our modes master only has DOCUMENT and NON_DOCUMENT
+  if (v === 'DOCUMENT') return 'DOCUMENT'
   return 'NON_DOCUMENT'
 }
 
@@ -32,15 +32,23 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
     // Map mode and service codes
     const modeCode = up(row.mode)
     const serviceCode = up(row.service_type)
-    const shipType = toEnumShipmentType(row.shipment_type)
+    // Shipment type is inferred from mode (no manual selection in new model)
+    const shipType = inferShipmentFromModeCode(modeCode)
 
     const modeRes = await db.query(`SELECT id, code FROM modes WHERE is_active = true AND code = $1`, [modeCode])
     if ((modeRes as any).rowCount === 0) return NextResponse.json({ error: 'Mode not recognized' }, { status: 400 })
     const modeId = modeRes.rows[0].id as number
 
-    const svcRes = await db.query(`SELECT id, code FROM service_types WHERE is_active = true AND code = $1`, [serviceCode])
+    // Accept CSV value as code or as title
+    let svcRes = await db.query(`SELECT id, code FROM service_types WHERE is_active = true AND code = $1`, [serviceCode])
+    if ((svcRes as any).rowCount === 0) {
+      const rawTitle = String(row.service_type || '').trim()
+      if (rawTitle) {
+        svcRes = await db.query(`SELECT id, code FROM service_types WHERE is_active = true AND title ILIKE $1`, [rawTitle])
+      }
+    }
     if ((svcRes as any).rowCount === 0) return NextResponse.json({ error: 'Service Type not recognized' }, { status: 400 })
-    const serviceTypeId = svcRes.rows[0].id as number
+    const serviceTypeId = (svcRes as any).rows[0].id as number
 
     // Distance slab id: from dist or fallback from region title
     let distanceSlabId: number | null = dist.slabId
@@ -50,6 +58,11 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
         const dres = await db.query(`SELECT id FROM distance_slabs WHERE title ILIKE $1`, [title])
         if ((dres as any).rowCount > 0) distanceSlabId = dres.rows[0].id as number
       }
+    }
+    // If neighbor states detected but code is not OUT_OF_STATE, force to OUT_OF_STATE for consistency
+    if (distanceSlabId && dist && (dist as any).isNeighbor && (dist as any).code !== 'OUT_OF_STATE') {
+      const outRes = await db.query(`SELECT id FROM distance_slabs WHERE code = 'OUT_OF_STATE' LIMIT 1`)
+      if ((outRes as any).rowCount > 0) distanceSlabId = outRes.rows[0].id as number
     }
     if (!distanceSlabId) return NextResponse.json({ error: 'Unable to resolve distance category' }, { status: 400 })
 
@@ -98,7 +111,12 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
           distance_slab_id: distanceSlabId,
           weight_slab_id: weightSlabId,
           region_resolved: dist.title,
-          grams
+          grams,
+          origin_state: (dist as any).originState || null,
+          dest_state: (dist as any).destState || null,
+          is_neighbor: (dist as any).isNeighbor || false,
+          both_metro: (dist as any).bothMetro || false,
+          distance_code: (dist as any).code || null
         }
       }, { status: 404 })
     }
@@ -123,7 +141,7 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
       service_type_id: serviceTypeId,
       distance_slab_id: distanceSlabId,
       weight_slab_id: weightSlabId,
-      distance: { code: dist.code, title: dist.title },
+      distance: { code: (dist as any).code, title: (dist as any).title, originState: (dist as any).originState || null, destState: (dist as any).destState || null, isNeighbor: (dist as any).isNeighbor || false, bothMetro: (dist as any).bothMetro || false },
       rate_breakup: { base, fuelPct, fuel, packing, handling, gstPct, gst, subtotal, total },
     }
 

@@ -7,10 +7,10 @@ const STATE_ALIASES: Record<string, string> = {
   'KARNATAKA': 'KA', 'KA': 'KA', 'BANGALORE': 'KA', 'BENGALURU': 'KA',
   'TAMIL NADU': 'TN', 'TN': 'TN', 'CHENNAI': 'TN', 'MADRAS': 'TN',
   'WEST BENGAL': 'WB', 'WB': 'WB', 'KOLKATA': 'WB', 'CALCUTTA': 'WB',
-  'TELANGANA': 'TS', 'TS': 'TS', 'HYDERABAD': 'TS',
+  'TELANGANA': 'TS', 'TS': 'TS', 'HYDERABAD': 'TS', 'TELANGANA STATE': 'TS',
   'GUJARAT': 'GJ', 'GJ': 'GJ', 'AHMEDABAD': 'GJ',
-  'UTTAR PRADESH': 'UP', 'UP': 'UP',
-  'MADHYA PRADESH': 'MP', 'MP': 'MP',
+  'UTTAR PRADESH': 'UP', 'UP': 'UP', 'U.P': 'UP', 'U P': 'UP', 'UTTARPRADESH': 'UP',
+  'MADHYA PRADESH': 'MP', 'MP': 'MP', 'M.P': 'MP', 'M P': 'MP', 'MADHYAPRADESH': 'MP',
   'RAJASTHAN': 'RJ', 'RJ': 'RJ',
   'HARYANA': 'HR', 'HR': 'HR',
   'PUNJAB': 'PB', 'PB': 'PB',
@@ -18,10 +18,9 @@ const STATE_ALIASES: Record<string, string> = {
   'ODISHA': 'OD', 'ORISSA': 'OD', 'OD': 'OD',
   'JHARKHAND': 'JH', 'JH': 'JH',
   'CHHATTISGARH': 'CG', 'CG': 'CG',
-  'ANDHRA PRADESH': 'AP', 'AP': 'AP',
+  'ANDHRA PRADESH': 'AP', 'AP': 'AP', 'ANDHRAPRADESH': 'AP',
   'ASSAM': 'AS', 'AS': 'AS',
-  'KERALA': 'KL', 'KL': 'KL',
-  'TELANGANA STATE': 'TS'
+  'KERALA': 'KL', 'KL': 'KL'
 }
 
 function normalize(s?: string | null): string {
@@ -43,10 +42,14 @@ export function parseAddressBasic(addr?: string | null): ParsedAddress {
 
   // Try detect any state alias present
   let stateCode: string | undefined
-  for (const key of Object.keys(STATE_ALIASES)) {
-    if (text.includes(key)) {
-      stateCode = STATE_ALIASES[key]
-      break
+  const aliasKeys = Object.keys(STATE_ALIASES).sort((a, b) => b.length - a.length) // prioritize longer names first
+  for (const key of aliasKeys) {
+    if (key.length <= 3) {
+      // For short codes like 'KA', 'MP', 'UP' ensure word boundaries to avoid matching 'KANPUR'
+      const re = new RegExp(`(^|[^A-Z])${key}([^A-Z]|$)`, 'i')
+      if (re.test(text)) { stateCode = STATE_ALIASES[key]; break }
+    } else {
+      if (text.includes(key)) { stateCode = STATE_ALIASES[key]; break }
     }
   }
 
@@ -125,8 +128,13 @@ export async function getDistanceSlabByCode(code: DistanceCategoryCode) {
 }
 
 export async function resolveDistanceFromAddresses(originAddr?: string | null, destAddr?: string | null) {
+  const o = parseAddressBasic(originAddr)
+  const d = parseAddressBasic(destAddr)
+  // Precompute flags for diagnostics
+  const bothMetro = (await isMetroCity(o.city)) && (await isMetroCity(d.city))
+  const neighbor = o.stateCode && d.stateCode ? await areNeighborStates(o.stateCode, d.stateCode) : false
   const code = await resolveDistanceCategoryFromAddresses(originAddr, destAddr)
-  if (!code) return { code: null, title: null, slabId: null }
+  if (!code) return { code: null, title: null, slabId: null, originState: o.stateCode || null, destState: d.stateCode || null, isNeighbor: neighbor, bothMetro }
   const slab = await getDistanceSlabByCode(code)
-  return { code, title: slab?.title || null, slabId: slab?.id || null }
+  return { code, title: slab?.title || null, slabId: slab?.id || null, originState: o.stateCode || null, destState: d.stateCode || null, isNeighbor: neighbor, bothMetro }
 }

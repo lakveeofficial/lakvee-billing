@@ -43,7 +43,7 @@ export default function NewInvoicePage() {
   // Resolver breakdown per-item (keyed by item id)
   const [itemRateInfo, setItemRateInfo] = useState<Record<string, { found: boolean; baseRate?: number; fuelPct?: number | null; packing?: number | null; handling?: number | null; gstPct?: number | null; slabName?: string }>>({})
   // Masters for dropdowns (parity with Booking page)
-  const [modes, setModes] = useState<{ id: number; title: string }[]>([])
+  const [modes, setModes] = useState<{ id: number; title: string; code?: string }[]>([])
   const [services, setServices] = useState<{ id: number; title: string; code?: string }[]>([])
   const [regions, setRegions] = useState<{ id: number; title: string }[]>([])
   const [weightSlabs, setWeightSlabs] = useState<{ id: number; slab_name: string }[]>([])
@@ -155,6 +155,16 @@ export default function NewInvoicePage() {
       notes: ''
     }
   });
+
+  // Infer shipment type from selected mode using modes[].code
+  const inferShipmentFromMode = (modeId?: number | string): 'DOCUMENT' | 'NON_DOCUMENT' | undefined => {
+    if (modeId == null) return undefined
+    const m = modes.find(x => String(x.id) === String(modeId))
+    const code = (m?.code || m?.title || '').toUpperCase().replace(/[-\s]/g, '')
+    if (code === 'DOCUMENT') return 'DOCUMENT'
+    if (code === 'NONDOCUMENT' || code === 'NON_DOCUMENT') return 'NON_DOCUMENT'
+    return undefined
+  }
 
   // Load masters for rate dropdowns
 
@@ -285,8 +295,8 @@ export default function NewInvoicePage() {
         const current = Number(row?.pricePerUnit)
         // Only auto-set when empty/zero to avoid overriding manual edits
         if (isNaN(current) || current <= 0) {
-          const shipment = row?.shipmentType
           const modeId = row?.modeId
+          const shipment = inferShipmentFromMode(modeId)
           const serviceId = row?.serviceTypeId
           const regionId = row?.regionId
           if (!shipment || !modeId || !serviceId || !regionId) return
@@ -312,8 +322,8 @@ export default function NewInvoicePage() {
 
     items.forEach(async (row, idx) => {
       try {
-        const shipment: 'DOCUMENT' | 'NON_DOCUMENT' | undefined = row?.shipmentType
         const modeId = row?.modeId
+        const shipment: 'DOCUMENT' | 'NON_DOCUMENT' | undefined = inferShipmentFromMode(modeId)
         const serviceTypeId = row?.serviceTypeId
         const regionId = row?.regionId
         const weightKg = row?.weightKg
@@ -774,11 +784,10 @@ export default function NewInvoicePage() {
         const qty = Number(item.quantity) || 0
         const ppu = Number(item.pricePerUnit) || 0
         const total = qty * ppu
-        const modeTitle = modes.find(m => String(m.id) === String((item as any).modeId))?.title || ''
         const serviceTitle = services.find(s => String(s.id) === String((item as any).serviceTypeId))?.title || ''
         const regionTitle = regions.find(rg => String(rg.id) === String((item as any).regionId))?.title || ''
         const shipment = (item as any).shipmentType || ''
-        const descParts = [serviceTitle, modeTitle, regionTitle, shipment].filter(Boolean)
+        const descParts = [serviceTitle, regionTitle, shipment].filter(Boolean)
         const fallback = `Item #${idx + 1}`
         const itemDesc = descParts.length ? descParts.join(' • ') : fallback
         return {
@@ -788,7 +797,7 @@ export default function NewInvoicePage() {
           total_price: Math.max(0, total),
           booking_date: item.bookingDate || null,
           // New DB fields
-          shipment_type: (item as any).shipmentType || null,
+          shipment_type: (() => { const inf = inferShipmentFromMode((item as any).modeId as any); return inf || null })(),
           mode_id: (item as any).modeId != null && String((item as any).modeId).length ? Number((item as any).modeId) : null,
           service_type_id: (item as any).serviceTypeId != null && String((item as any).serviceTypeId).length ? Number((item as any).serviceTypeId) : null,
           distance_slab_id: (item as any).regionId != null && String((item as any).regionId).length ? Number((item as any).regionId) : null,
@@ -1269,7 +1278,6 @@ export default function NewInvoicePage() {
                   <th className="text-left py-2 px-3 text-sm font-medium text-gray-700">Consignment No</th>
                   <th className="text-left py-2 px-3 text-sm font-medium text-gray-700">Qty</th>
                   <th className="text-left py-2 px-3 text-sm font-medium text-gray-700">Weight (In Kg)</th>
-                  <th className="text-left py-2 px-3 text-sm font-medium text-gray-700">Shipment</th>
                   <th className="text-left py-2 px-3 text-sm font-medium text-gray-700">Mode</th>
                   <th className="text-left py-2 px-3 text-sm font-medium text-gray-700">Service</th>
                   <th className="text-left py-2 px-3 text-sm font-medium text-gray-700">Distance</th>
@@ -1308,25 +1316,27 @@ export default function NewInvoicePage() {
                       />
                     </td>
                     <td className="py-2 px-3">
-                      <select
-                        {...register(`items.${index}.shipmentType` as any)}
-                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
-                      >
-                        <option value="">Select</option>
-                        <option value="DOCUMENT">Document</option>
-                        <option value="NON_DOCUMENT">Non Document</option>
-                      </select>
-                    </td>
-                    <td className="py-2 px-3">
-                      <select
-                        {...register(`items.${index}.modeId` as any)}
-                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
-                      >
-                        <option value="">Select</option>
-                        {modes.map(m => (
-                          <option key={m.id} value={m.id}>{m.title}</option>
-                        ))}
-                      </select>
+                      <div className="flex items-center gap-2">
+                        <select
+                          {...register(`items.${index}.modeId` as any)}
+                          className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                        >
+                          <option value="">Select</option>
+                          {modes.map(m => (
+                            <option key={m.id} value={m.id}>{m.title}</option>
+                          ))}
+                        </select>
+                        {(() => {
+                          const row: any = watchedFields.items?.[index] || field
+                          const inferred = inferShipmentFromMode(row?.modeId)
+                          if (!inferred) return null
+                          return (
+                            <span className="text-[11px] text-gray-600 border border-gray-200 rounded px-1.5 py-0.5 bg-gray-50" title="Shipment auto-inferred from Mode">
+                              {inferred === 'DOCUMENT' ? 'Document' : 'Non Document'}
+                            </span>
+                          )
+                        })()}
+                      </div>
                     </td>
                     <td className="py-2 px-3">
                       <select

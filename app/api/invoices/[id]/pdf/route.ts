@@ -11,6 +11,83 @@ function inr(amount: any) {
   return 'INR ' + new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
 }
 
+type TemplateId = 'standard' | 'modern' | 'classic' | 'courier_aryan'
+
+type TemplateStyle = {
+  variant: 'band' | 'line' | 'classic'
+  accent: [number, number, number]
+  headerTextColor: [number, number, number]
+  tableHeaderFill: boolean
+}
+
+function getTemplateStyle(t: string): TemplateStyle {
+  const id = (t || '').toLowerCase()
+  if (id === 'modern') {
+    return { variant: 'band', accent: [16, 185, 129], headerTextColor: [255, 255, 255], tableHeaderFill: true }
+  }
+  if (id === 'classic') {
+    return { variant: 'classic', accent: [55, 65, 81], headerTextColor: [0, 0, 0], tableHeaderFill: false }
+  }
+  // default standard
+  return { variant: 'line', accent: [14, 165, 233], headerTextColor: [0, 0, 0], tableHeaderFill: true }
+}
+
+function drawHeaderStyled(doc: jsPDF, company: any, title: string, style: TemplateStyle) {
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const left = 40
+  let top = 36
+  if (style.variant === 'band') {
+    // full-width colored band
+    doc.setFillColor(...style.accent)
+    doc.rect(0, 0, pageWidth, 80, 'F')
+    doc.setTextColor(...style.headerTextColor)
+  } else {
+    doc.setTextColor(0, 0, 0)
+  }
+  // Logo and company
+  let logoBottomY = top
+  if (company?.logo && typeof company.logo === 'string' && company.logo.startsWith('data:image/')) {
+    try {
+      const type = company.logo.includes('png') ? 'PNG' : 'JPEG'
+      const maxW = 70, maxH = 40
+      let w = maxW, h = maxH
+      try {
+        const props: any = (doc as any).getImageProperties ? (doc as any).getImageProperties(company.logo) : null
+        if (props && props.width && props.height) {
+          const ratio = props.width / props.height
+          if (maxW / maxH > ratio) { h = Math.min(maxH, maxW / ratio, maxH); w = h * ratio } else { w = Math.min(maxW, maxH * ratio, maxW); h = w / ratio }
+        }
+      } catch {}
+      doc.addImage(company.logo, type as any, left, top, w, h)
+      logoBottomY = top + h
+    } catch {}
+  }
+  const right = pageWidth - 40
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(14)
+  doc.text(company?.business_name || 'Company', right, 46, { align: 'right' as any })
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10)
+  const addrRaw = String(company?.business_address || '')
+  const addrWrapped = addrRaw ? doc.splitTextToSize(addrRaw, 260) : []
+  if (addrWrapped.length) { doc.text(addrWrapped as any, right, 62, { align: 'right' as any }) }
+  const phone = company?.phone_number ? `Phone: ${company.phone_number}` : ''
+  const email = company?.email_id ? `Email: ${company.email_id}` : ''
+  let y2 = addrWrapped.length ? (62 + (addrWrapped.length * 12) + 2) : 78
+  if (phone) { doc.text(phone, right, y2, { align: 'right' as any }); y2 += 14 }
+  if (email) { doc.text(email, right, y2, { align: 'right' as any }); y2 += 14 }
+  if (company?.gstin) { doc.text(`GSTIN: ${company.gstin}`, right, y2, { align: 'right' as any }); y2 += 14 }
+
+  // Title and decorative line if needed
+  const titleY = Math.max(88, logoBottomY + 8, y2 + 10)
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(18)
+  doc.text(title, left, titleY)
+  if (style.variant === 'line') {
+    doc.setDrawColor(...style.accent); doc.setLineWidth(1.2); doc.line(left, titleY + 6, pageWidth - left, titleY + 6)
+  }
+  // reset text color for body
+  doc.setTextColor(0, 0, 0)
+  return Math.max(94, titleY + 26)
+}
+
 function drawSignature(doc: jsPDF, company: any) {
   if (company?.signature && typeof company.signature === 'string' && company.signature.startsWith('data:image/')) {
     try {
@@ -209,7 +286,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
   const { id } = params
   const url = new URL(request.url)
-  const template = url.searchParams.get('template') || 'courier_aryan'
+  const template = (url.searchParams.get('template') as TemplateId) || 'courier_aryan'
   try {
     // Fetch invoice header + party
     const invRes = await db.query(
@@ -233,6 +310,13 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       [id]
     )
     const consignments = consRes.rows
+    // Sort consignments by booking_date ascending (oldest first). Null/invalid dates go last.
+    const parseTime = (d: any) => {
+      if (!d) return Number.POSITIVE_INFINITY
+      const t = new Date(d as any).getTime()
+      return isFinite(t) ? t : Number.POSITIVE_INFINITY
+    }
+    consignments.sort((a: any, b: any) => parseTime(a.booking_date) - parseTime(b.booking_date))
 
     // Company
     const company = await getAnyActiveCompany()
@@ -248,6 +332,214 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       const sigData = await toDataUrlIfNeeded((company as any)?.signature, origin)
       if (sigData) (company as any).signature = sigData
     } catch {}
+
+    // If not courier_aryan, render themed variant and return
+    if (template && template !== 'courier_aryan') {
+      const styled = getTemplateStyle(template)
+      let y = drawHeaderStyled(doc, company, 'Tax Invoice', styled)
+      const left = 40
+      const right = doc.internal.pageSize.getWidth() - 40
+
+      // Summary box (same data parity, minor style tweak)
+      const boxW = right - left
+      const sbTop = y
+      const sbLH = 14
+      doc.setDrawColor(200)
+      if (styled.variant !== 'classic') { doc.setFillColor(248, 250, 252); doc.rect(left, sbTop, boxW, 120, 'FD') } else { doc.rect(left, sbTop, boxW, 120) }
+
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11)
+      doc.text('Invoice Details', left + 10, sbTop + 20)
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10)
+      doc.text(`Invoice No: ${inv.invoice_number}`, left + 10, sbTop + 36)
+      doc.text(`Invoice Date: ${inv.invoice_date ? (() => { const d = new Date(inv.invoice_date); const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yy = d.getFullYear(); return `${dd}-${mm}-${yy}` })() : ''}`, left + 10, sbTop + 36 + sbLH)
+
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11)
+      doc.text('Bill To', left + boxW/2, sbTop + 20)
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10)
+      doc.text(String(inv.party_name || ''), left + boxW/2, sbTop + 36)
+      const addr = [inv.party_address, `${inv.party_city || ''}${inv.party_state ? ', ' + inv.party_state : ''}`, inv.party_pincode].filter(Boolean).join('\n')
+      if (addr) { const lines = doc.splitTextToSize(addr, boxW/2 - 20); doc.text(lines, left + boxW/2, sbTop + 36 + sbLH) }
+      if (inv.party_phone) doc.text(`Phone: ${inv.party_phone}`, left + boxW/2, sbTop + 36 + sbLH * 3.5)
+      if (inv.party_gstin) doc.text(`GSTIN: ${inv.party_gstin}`, left + boxW/2, sbTop + 36 + sbLH * 4.5)
+
+      y = sbTop + 120 + 14
+
+      // Table header (reordered): S.NO., Booking Date, Consignment No, Mode, Service, Distance, Weight (Kg), Amount
+      const headers = ['S.NO.', 'Booking Date', 'Consignment No', 'Mode', 'Service', 'Distance', 'Weight (Kg)', 'Amount']
+      type Align = 'left' | 'center' | 'right'
+      const aligns: Align[] = ['center','left','left','left','left','left','right','right']
+      const headerAligns: Align[] = ['center','center','center','center','center','center','right','right']
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5)
+      doc.setDrawColor(180)
+      doc.setLineWidth(0.15)
+
+      const rows = consignments.map((it:any, idx:number) => {
+        const sno = idx + 1
+        const weight = Number(it.weight ?? 0)
+        const meta: any = it?.pricing_meta || null
+        const slabBase = meta?.rate_breakup?.base ?? meta?.base ?? meta?.rate_breakup?.baseRate
+        const base = Number((slabBase ?? it.calculated_amount ?? it.prepaid_amount ?? it.final_collected ?? it.retail_price ?? 0))
+        const distance = distanceDisplay(it.region, it.recipient_address)
+        const bookingDate = it.booking_date ? (() => { const d = new Date(it.booking_date); const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yy = d.getFullYear(); return `${dd}-${mm}-${yy}` })() : ''
+        return [ String(sno), String(bookingDate), String(it.consignment_no || ''), String(it.mode || ''), String(it.service_type || ''), String(distance || ''), inrNumber(weight), inrNumber(base) ]
+      })
+
+      const usableW = doc.internal.pageSize.getWidth() - left - (right ?? (doc.internal.pageSize.getWidth() - left - 515))
+      // Width presets adjusted for new order (S.NO., Booking Date, Consignment No)
+      // Increase Mode (index 3) min/max to keep 'Non-Document' on one line (hard minimum)
+      const minW = [26, 60, 70, 120, 50, 50, 58, 68]
+      const maxW = [40, 95, 120, 160, 85, 90, 70, 95]
+      const padd = 10
+      const cellPadL = 8
+      const cellPadR = 8
+      const widths: number[] = new Array(headers.length).fill(0)
+      const measure = (txt: string) => doc.getTextWidth(txt)
+      for (let c = 0; c < headers.length; c++) { widths[c] = Math.min(maxW[c], Math.max(minW[c], measure(headers[c]) + padd)) }
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5)
+      for (const r of rows) { for (let c = 0; c < r.length; c++) { widths[c] = Math.min(maxW[c], Math.max(widths[c], measure(String(r[c])) + padd)) } }
+      let sumW = widths.reduce((a,b)=>a+b,0)
+      const targetW = 515
+      if (sumW !== targetW) { const scale = targetW / sumW; for (let i = 0; i < widths.length; i++) { widths[i] = Math.max(minW[i], Math.min(maxW[i], widths[i] * scale)) } const delta = targetW - widths.reduce((a,b)=>a+b,0); widths[widths.length-1] += delta }
+      const x2: number[] = []; { let acc = left; for (const w of widths) { x2.push(acc); acc += w } }
+
+      const headerH = 24
+      if (styled.tableHeaderFill) { doc.setFillColor(...styled.accent); doc.rect(x2[0], y, targetW, headerH, 'F'); doc.setTextColor(255,255,255) } else { doc.rect(x2[0], y, targetW, headerH); doc.setTextColor(0,0,0) }
+      for (let i = 1; i < x2.length; i++) { doc.line(x2[i], y, x2[i], y + headerH) }
+      const hc = (idx:number)=> x2[idx] + widths[idx] / 2
+      const headerBaseline = y + headerH / 2 + 5
+      for (let c = 0; c < headers.length; c++) {
+        if (headerAligns[c] === 'right') doc.text(headers[c], x2[c] + widths[c] - cellPadR, headerBaseline, { align: 'right' as any })
+        else if (headerAligns[c] === 'center') doc.text(headers[c], hc(c), headerBaseline, { align: 'center' as any })
+        else doc.text(headers[c], x2[c] + cellPadL, headerBaseline)
+      }
+      doc.setTextColor(0,0,0)
+      y += headerH
+
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5)
+      const pageHeight = doc.internal.pageSize.getHeight()
+      const bottomMargin = 140
+      const lineH = 9.2
+      const vPad = 12
+      let subtotalBase = 0
+      let rowIndex = 0
+      for (const it of consignments) {
+        const cellLines: string[][] = []
+        let rowH = 0
+        const data = rows[rowIndex]
+        for (let c = 0; c < data.length; c++) {
+          const content = String(data[c])
+          const wrapW = widths[c] - padd
+          // Do not wrap Mode (index 3) so terms like 'Non-Document' stay on one line
+          const lines = (c === 3) ? [content] : (doc.splitTextToSize(content, wrapW) as string[])
+          cellLines.push(lines)
+          rowH = Math.max(rowH, vPad * 2 + lines.length * lineH)
+        }
+        if (y + rowH > pageHeight - bottomMargin) {
+          doc.addPage(); if (lakveeLogo) { addWatermark(doc, lakveeLogo) }
+          y = drawHeaderStyled(doc, company, 'Tax Invoice', styled)
+          // redraw header row
+          if (styled.tableHeaderFill) { doc.setFillColor(...styled.accent); doc.rect(x2[0], y, headerH + targetW - headerH, headerH, 'F'); doc.setTextColor(255,255,255) } else { doc.rect(x2[0], y, targetW, headerH); doc.setTextColor(0,0,0) }
+          for (let i = 1; i < x2.length; i++) { doc.line(x2[i], y, x2[i], y + headerH) }
+          const headerBaseline2 = y + headerH / 2 + 5
+          for (let c = 0; c < headers.length; c++) { if (headerAligns[c] === 'right') doc.text(headers[c], x2[c] + widths[c] - cellPadR, headerBaseline2, { align: 'right' as any }); else if (headerAligns[c] === 'center') doc.text(headers[c], hc(c), headerBaseline2, { align: 'center' as any }); else doc.text(headers[c], x2[c] + cellPadL, headerBaseline2) }
+          y += headerH; doc.setTextColor(0,0,0)
+        }
+        subtotalBase += Number(rows[rowIndex][7].replace(/,/g,'')) || 0
+        doc.rect(x2[0], y, targetW, rowH)
+        for (let i = 1; i < x2.length; i++) { doc.line(x2[i], y, x2[i], y + rowH) }
+        for (let c = 0; c < cellLines.length; c++) {
+          const lines = cellLines[c]; const startX = aligns[c] === 'right' ? x2[c] + widths[c] - cellPadR : aligns[c] === 'center' ? x2[c] + widths[c]/2 : (c === 3 ? x2[c] + 4 : x2[c] + cellPadL)
+          let offsetY = y + vPad + lineH
+          const restoreSize = 8.5
+          if (c === 3) doc.setFontSize(8.0)
+          for (const ln of lines) { if (aligns[c] === 'right') doc.text(String(ln), startX, offsetY, { align: 'right' as any }); else if (aligns[c] === 'center') doc.text(String(ln), startX, offsetY, { align: 'center' as any }); else doc.text(String(ln), startX, offsetY); offsetY += lineH }
+          if (c === 3) doc.setFontSize(restoreSize)
+        }
+        y += rowH
+        rowIndex++
+      }
+
+      // Totals computation parity
+      const slab = (inv as any).slab_breakdown || {}
+      const fuelPct = Number(slab.fuel_pct || 0)
+      const packing = Number(slab.packing || 0)
+      const handling = Number(slab.handling || 0)
+      const gstPct = Number((slab as any).gst_pct ?? (slab as any).gst_percent ?? 0)
+      const computedSubFromBases = Number(isFinite(subtotalBase) ? subtotalBase : 0)
+      const fuelAmtComputed = computedSubFromBases * (fuelPct / 100)
+      const baseForGstComputed = computedSubFromBases + fuelAmtComputed + packing + handling
+      const gstHalfPct = gstPct ? (gstPct / 2) : 0
+      const sgstAmtComputed = gstHalfPct ? (baseForGstComputed * (gstHalfPct / 100)) : 0
+      const cgstAmtComputed = gstHalfPct ? (baseForGstComputed * (gstHalfPct / 100)) : 0
+      const gstAmtComputed = sgstAmtComputed + cgstAmtComputed
+      const totalComputed = computedSubFromBases + fuelAmtComputed + packing + handling + gstAmtComputed
+      const subTotal = Number(computedSubFromBases) || 0
+      const total = Number(totalComputed) || 0
+
+      // Styled totals block
+      y += 16
+      const boxW2 = 360
+      const sbLeft = left
+      const sbTop2 = y
+      const sbLH2 = 16
+      doc.setDrawColor(180)
+      if (template === 'modern') { doc.setFillColor(236, 253, 245); doc.rect(sbLeft, sbTop2, boxW2, sbLH2 * 8 + 24, 'FD') } else if (template === 'standard') { doc.setFillColor(239, 246, 255); doc.rect(sbLeft, sbTop2, boxW2, sbLH2 * 8 + 24, 'FD') } else { doc.rect(sbLeft, sbTop2, boxW2, sbLH2 * 8 + 24) }
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10)
+      doc.text('Pricing Breakdown', sbLeft + 10, sbTop2 + 16)
+      doc.setFont('courier', 'normal')
+      const slabelX = sbLeft + 12
+      const scolonX = sbLeft + 180
+      const svalueX = sbLeft + boxW2 - 12
+      let sy = sbTop2 + 30
+      const put = (label: string, value: string) => { doc.text(label, slabelX, sy); doc.text(':', scolonX, sy); doc.text(value, svalueX, sy, { align: 'right' as any }); sy += sbLH2 }
+      put('Subtotal', `INR ${inrNumber(subTotal)}`)
+      if (fuelPct) put(`Fuel (${inrNumber(fuelPct)}%)`, `INR ${inrNumber(fuelAmtComputed)}`)
+      if (packing) put('Packing', `INR ${inrNumber(packing)}`)
+      if (handling) put('Handling', `INR ${inrNumber(handling)}`)
+      if (gstPct) { put(`SGST (${inrNumber(gstHalfPct)}%)`, `INR ${inrNumber(sgstAmtComputed)}`); put(`CGST (${inrNumber(gstHalfPct)}%)`, `INR ${inrNumber(cgstAmtComputed)}`) }
+      doc.setFont('courier', 'bold'); put('Total', `INR ${inrNumber(total)}`); doc.setFont('courier', 'normal')
+      y = sbTop2 + (sbLH2 * 8 + 24) + 24
+
+      // Amount in words
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('Invoice Amount in Words:', left, y)
+      y += 14; doc.setFont('helvetica', 'normal'); const words = doc.splitTextToSize(numberToWordsINR(total), 480); doc.text(words, left, y)
+
+      // Total / Received / Balance box
+      y += 28
+      const tLeft = left
+      const tWidth = 515
+      const tCols = [tLeft, tLeft + tWidth/3, tLeft + 2*tWidth/3, tLeft + tWidth]
+      const tRowH = 24
+      const tTop = y
+      doc.setDrawColor(0)
+      if (template === 'modern') { doc.setFillColor(...styled.accent); doc.rect(tCols[0], tTop, tWidth, tRowH, 'F'); doc.setTextColor(255,255,255) } else { doc.setTextColor(0,0,0) }
+      // header row borders
+      doc.line(tCols[0], tTop, tCols[3], tTop)
+      doc.line(tCols[0], tTop + tRowH, tCols[3], tTop + tRowH)
+      for (let i = 0; i < tCols.length; i++) { doc.line(tCols[i], tTop, tCols[i], tTop + tRowH) }
+      doc.setFont('helvetica', 'bold')
+      doc.text('Total', tCols[0] + 8, tTop + 15)
+      doc.text('Received', tCols[1] + 8, tTop + 15)
+      doc.text('Balance', tCols[2] + 8, tTop + 15)
+      doc.setTextColor(0,0,0)
+      // values row
+      const vTop = tTop + tRowH
+      doc.line(tCols[0], vTop, tCols[3], vTop)
+      doc.line(tCols[0], vTop + tRowH, tCols[3], vTop + tRowH)
+      for (let i = 0; i < tCols.length; i++) { doc.line(tCols[i], vTop, tCols[i], vTop + tRowH) }
+      const receivedAmt = Number((inv as any).received_amount ?? 0)
+      const balanceAmt = Math.max(total - receivedAmt, 0)
+      doc.setFont('helvetica', 'normal')
+      doc.text(inr(total), tCols[0] + 8, vTop + 15)
+      doc.text(inr(receivedAmt), tCols[1] + 8, vTop + 15)
+      doc.text(inr(balanceAmt), tCols[2] + 8, vTop + 15)
+
+      // Signature and return
+      drawSignature(doc, company)
+      const pdfBytes2 = doc.output('arraybuffer') as ArrayBuffer
+      return new NextResponse(Buffer.from(pdfBytes2), { status: 200, headers: { 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="invoice-${inv.invoice_number}.pdf"`, 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0', Pragma: 'no-cache', Expires: '0' } })
+    }
+
     let y = drawHeader(doc, company, 'Tax Invoice')
 
     const left = 40
@@ -264,7 +556,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     doc.text('Invoice Details', left + 10, sbTop + 20)
     doc.setFont('helvetica', 'normal'); doc.setFontSize(10)
     doc.text(`Invoice No: ${inv.invoice_number}`, left + 10, sbTop + 36)
-    doc.text(`Invoice Date: ${inv.invoice_date ? new Date(inv.invoice_date).toLocaleDateString() : ''}`, left + 10, sbTop + 36 + sbLH)
+    const invoiceDate = inv.invoice_date ? (() => { const d = new Date(inv.invoice_date); const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yy = d.getFullYear(); return `${dd}-${mm}-${yy}` })() : ''
+    doc.text(`Invoice Date: ${invoiceDate}`, left + 10, sbTop + 36 + sbLH)
     
 
     doc.setFont('helvetica', 'bold'); doc.setFontSize(11)
@@ -281,21 +574,20 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     y = sbTop + 120 + 14
 
-    // Consignments table (auto-fit)
-    const headers = ['Consignment No', 'Qty', 'Shipment', 'Mode', 'Service', 'Distance', 'Weight (Kg)', 'Amount']
+    // Consignments table (auto-fit) — reordered first three columns as requested
+    const headers = ['S.NO.', 'Booking Date', 'Consignment No', 'Mode', 'Service', 'Distance', 'Weight (Kg)', 'Amount']
     type Align = 'left' | 'center' | 'right'
-    // Data alignment: keep numeric right-aligned; shift text columns to left to avoid touching vertical lines
-    const aligns: Align[] = ['left','center','left','left','left','left','right','right']
-    // Header alignment (visual): keep centered for readability; numeric right-aligned
+    // Data alignment: numeric right-aligned; S.No centered; text left-aligned
+    const aligns: Align[] = ['center','left','left','left','left','left','right','right']
+    // Header alignment
     const headerAligns: Align[] = ['center','center','center','center','center','center','right','right']
     doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5)
     doc.setDrawColor(180)
     doc.setLineWidth(0.15)
 
     // Prepare row strings
-    const rows = consignments.map((it:any) => {
-      const qty = 1
-      // Map exactly as per CSV uploaded list
+    const rows = consignments.map((it:any, idx:number) => {
+      const sno = idx + 1
       const weight = Number(it.weight ?? 0)
       // Amount shown in invoice table should match the "Slab Rate" visible in the CSV list
       const meta: any = it?.pricing_meta || null
@@ -305,10 +597,11 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         (slabBase ?? it.calculated_amount ?? it.prepaid_amount ?? it.final_collected ?? it.retail_price ?? 0)
       )
       const distance = distanceDisplay(it.region, it.recipient_address)
+      const bookingDate = it.booking_date ? (() => { const d = new Date(it.booking_date); const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yy = d.getFullYear(); return `${dd}-${mm}-${yy}` })() : ''
       return [
+        String(sno),
+        String(bookingDate),
         String(it.consignment_no || ''),
-        String(qty),
-        String(it.shipment_type || ''),
         String(it.mode || ''),
         String(it.service_type || ''),
         String(distance || ''),
@@ -319,8 +612,10 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     // Compute dynamic widths from content
     const usableW = doc.internal.pageSize.getWidth() - left - (right ?? (doc.internal.pageSize.getWidth() - left - 515))
-    const minW = [70, 26, 60, 50, 50, 50, 58, 68]
-    const maxW = [140, 40, 120, 90, 90, 90, 70, 95]
+    // Width presets adjusted for new order (S.NO., Booking Date, Consignment No)
+    // Increase Mode (index 3) min/max to keep 'Non-Document' on one line (hard minimum)
+    const minW = [26, 60, 70, 110, 50, 50, 58, 68]
+    const maxW = [40, 110, 130, 150, 90, 90, 70, 95]
     const padd = 10
     const cellPadL = 8
     const cellPadR = 8
@@ -390,8 +685,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       for (let c = 0; c < data.length; c++) {
         const content = String(data[c])
         const wrapW = widths[c] - padd
-        const lines = doc.splitTextToSize(content, wrapW)
-        cellLines.push(lines as string[])
+        // Do not wrap Mode (index 3)
+        const lines = (c === 3) ? [content] : (doc.splitTextToSize(content, wrapW) as string[])
+        cellLines.push(lines)
         rowH = Math.max(rowH, vPad * 2 + lines.length * lineH)
       }
 
@@ -424,12 +720,15 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         // Start a bit below the top to avoid touching the top rule
         const contentH = lines.length * lineH
         let offsetY = y + vPad + lineH
+        const restoreSize = 8.5
+        if (c === 3) doc.setFontSize(8.2)
         for (const ln of lines) {
           if (aligns[c] === 'right') doc.text(String(ln), startX, offsetY, { align: 'right' as any })
           else if (aligns[c] === 'center') doc.text(String(ln), startX, offsetY, { align: 'center' as any })
           else doc.text(String(ln), startX, offsetY)
           offsetY += lineH
         }
+        if (c === 3) doc.setFontSize(restoreSize)
       }
       y += rowH
       rowIndex++

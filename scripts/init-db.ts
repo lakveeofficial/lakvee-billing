@@ -378,29 +378,78 @@ async function initializeDatabase() {
       )
     `);
 
-    // --- Add slabs table ---
-    console.log('Creating slabs table...');
+    // --- Service Types master ---
+    console.log('Creating service_types table...');
     await client.query(`
-      CREATE TABLE IF NOT EXISTS slabs (
+      CREATE TABLE IF NOT EXISTS service_types (
         id SERIAL PRIMARY KEY,
-        slabType VARCHAR(50) NOT NULL,
-        slabLabel VARCHAR(255) NOT NULL,
-        fromValue NUMERIC NOT NULL,
-        toValue NUMERIC NOT NULL,
-        unitType VARCHAR(50) NOT NULL,
-        rate NUMERIC NOT NULL,
-        effectiveDate DATE NOT NULL,
-        status VARCHAR(20) NOT NULL,
-        distanceCategory VARCHAR(50)
+        code TEXT NOT NULL UNIQUE,
+        title TEXT NOT NULL,
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    console.log('Creating active_companies table...');
+    // --- Modes master (align with UI: using shipment types as modes) ---
+    console.log('Creating modes table...');
     await client.query(`
-      CREATE TABLE IF NOT EXISTS active_companies (
-        user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-        company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE,
+      CREATE TABLE IF NOT EXISTS modes (
+        id SERIAL PRIMARY KEY,
+        code TEXT NOT NULL UNIQUE,
+        title TEXT NOT NULL,
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    console.log('Seeding modes with DOCUMENT and NON_DOCUMENT (upsert and deactivate others)...');
+    await client.query(`
+      INSERT INTO modes(code, title, is_active) VALUES
+        ('DOCUMENT','Document', TRUE),
+        ('NON_DOCUMENT','Non Document', TRUE)
+      ON CONFLICT (code) DO UPDATE SET
+        title = EXCLUDED.title,
+        is_active = TRUE,
+        updated_at = CURRENT_TIMESTAMP
+    `);
+    await client.query(`
+      UPDATE modes
+      SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP
+      WHERE code NOT IN ('DOCUMENT','NON_DOCUMENT')
+    `);
+
+    console.log('Seeding service_types (upsert 9 and deactivate others)...');
+    await client.query(`
+      INSERT INTO service_types(code, title, is_active) VALUES
+        ('AIR_CARGO','Air Cargo', TRUE),
+        ('B2C_PRIORITY','B2C Priority', TRUE),
+        ('B2C_SMART_EXPRESS','B2C SMART EXPRESS', TRUE),
+        ('EXPRESS','EXPRESS', TRUE),
+        ('GROUND_EXPRESS','Ground Express', TRUE),
+        ('PREMIUM','PREMIUM', TRUE),
+        ('STD_EXP_A','STD EXP-A', TRUE),
+        ('STD_EXP_S','STD EXP-S', TRUE),
+        ('SURFACE_EXPRESS','SURFACE EXPRESS', TRUE)
+      ON CONFLICT (code) DO UPDATE SET
+        title = EXCLUDED.title,
+        is_active = TRUE,
+        updated_at = CURRENT_TIMESTAMP
+    `);
+    await client.query(`
+      UPDATE service_types
+      SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP
+      WHERE code NOT IN (
+        'AIR_CARGO',
+        'B2C_PRIORITY',
+        'B2C_SMART_EXPRESS',
+        'EXPRESS',
+        'GROUND_EXPRESS',
+        'PREMIUM',
+        'STD_EXP_A',
+        'STD_EXP_S',
+        'SURFACE_EXPRESS'
       )
     `);
 

@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { Party, PartyFilters, GST_TYPES, INDIAN_STATES } from '@/types/party'
 import PageHeader from '@/components/PageHeader'
+import ModalShell from '@/components/ModalShell'
 
 export default function PartiesPage() {
   const [parties, setParties] = useState<Party[]>([])
@@ -538,69 +539,61 @@ export default function PartiesPage() {
         )}
       </div>
       {paymentModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="w-full max-w-xl overflow-hidden rounded-2xl shadow-2xl border border-white/10">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-primary-600 to-emerald-600 px-6 py-4 text-white">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <IndianRupee className="h-5 w-5" />
-                  <h3 className="text-lg font-semibold">Add Payment</h3>
-                </div>
-                <button className="/text-white/80 hover:text-white" onClick={() => setPaymentModalOpen(false)}>✕</button>
+        <ModalShell
+          isOpen={paymentModalOpen}
+          onClose={() => setPaymentModalOpen(false)}
+          title="Add Payment"
+          icon={<IndianRupee className="h-5 w-5" />}
+          size="md"
+          footer={(
+            <>
+              <button className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50" onClick={() => setPaymentModalOpen(false)} disabled={paymentSaving}>Cancel</button>
+              <button className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-white bg-gradient-to-r from-primary-600 to-emerald-600 hover:from-primary-700 hover:to-emerald-700 disabled:opacity-60" onClick={savePartyPayment} disabled={paymentSaving}>
+                <IndianRupee className="h-4 w-4" />
+                {paymentSaving ? 'Saving…' : 'Save Payment'}
+              </button>
+            </>
+          )}
+        >
+          <div className="mb-3 text-xs text-gray-600">Party: <span className="font-medium">{paymentPartyName}</span></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-gray-700 mb-1">Date</label>
+              <div className="relative">
+                <Calendar className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input type="date" className="w-full border rounded-md pl-9 pr-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" value={paymentDate} onChange={(e)=>setPaymentDate(e.target.value)} />
               </div>
-              <div className="mt-1 text-xs text-white/90">Party: <span className="font-medium">{paymentPartyName}</span></div>
             </div>
-
-            {/* Body */}
-            <div className="bg-white px-6 py-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-700 mb-1">Date</label>
-                  <div className="relative">
-                    <Calendar className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input type="date" className="w-full border rounded-md pl-9 pr-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" value={paymentDate} onChange={(e)=>setPaymentDate(e.target.value)} />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-700 mb-1">Amount</label>
-                  <div className="relative">
-                    <IndianRupee className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input type="number" min="0" step="0.01" className="w-full border rounded-md pl-9 pr-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" value={paymentAmount} onChange={(e)=>setPaymentAmount(e.target.value)} />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-700 mb-1">Method</label>
-                  <div className="relative">
-                    <CreditCard className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input type="text" className="w-full border rounded-md pl-9 pr-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" value={paymentMethod} onChange={(e)=>setPaymentMethod(e.target.value)} placeholder="NEFT / UPI / CASH" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-700 mb-1">Reference No</label>
-                  <div className="relative">
-                    <Hash className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input type="text" className="w-full border rounded-md pl-9 pr-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" value={paymentRef} onChange={(e)=>setPaymentRef(e.target.value)} />
-                  </div>
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm text-gray-700 mb-1">Notes</label>
-                  <div className="relative">
-                    <StickyNote className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input type="text" className="w-full border rounded-md pl-9 pr-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" value={paymentNotes} onChange={(e)=>setPaymentNotes(e.target.value)} placeholder="Optional" />
-                  </div>
-                </div>
+            <div>
+              <label className="block text-sm text-gray-700 mb-1">Amount</label>
+              <div className="relative">
+                <IndianRupee className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input type="number" min="0" step="0.01" className="w-full border rounded-md pl-9 pr-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" value={paymentAmount} onChange={(e)=>setPaymentAmount(e.target.value)} />
               </div>
-              <div className="mt-6 flex items-center justify-end gap-2">
-                <button className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50" onClick={()=>setPaymentModalOpen(false)} disabled={paymentSaving}>Cancel</button>
-                <button className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-white bg-gradient-to-r from-primary-600 to-emerald-600 hover:from-primary-700 hover:to-emerald-700 disabled:opacity-60" onClick={savePartyPayment} disabled={paymentSaving}>
-                  <IndianRupee className="h-4 w-4" />
-                  {paymentSaving ? 'Saving…' : 'Save Payment'}
-                </button>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700 mb-1">Method</label>
+              <div className="relative">
+                <CreditCard className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input type="text" className="w-full border rounded-md pl-9 pr-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" value={paymentMethod} onChange={(e)=>setPaymentMethod(e.target.value)} placeholder="NEFT / UPI / CASH" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700 mb-1">Reference No</label>
+              <div className="relative">
+                <Hash className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input type="text" className="w-full border rounded-md pl-9 pr-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" value={paymentRef} onChange={(e)=>setPaymentRef(e.target.value)} />
+              </div>
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm text-gray-700 mb-1">Notes</label>
+              <div className="relative">
+                <StickyNote className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input type="text" className="w-full border rounded-md pl-9 pr-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" value={paymentNotes} onChange={(e)=>setPaymentNotes(e.target.value)} placeholder="Optional" />
               </div>
             </div>
           </div>
-        </div>
+        </ModalShell>
       )}
     </div>
   )

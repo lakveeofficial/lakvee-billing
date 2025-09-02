@@ -50,6 +50,12 @@ function toMaybeNumber(v: string) {
   return Number.isFinite(n) ? n : null
 }
 
+function inferShipmentFromModeCode(mode?: string | null): 'DOCUMENT' | 'NON_DOCUMENT' {
+  const v = String(mode || '').trim().toUpperCase()
+  if (v === 'DOCUMENT' || v.startsWith('DOC')) return 'DOCUMENT'
+  return 'NON_DOCUMENT'
+}
+
 export default function EditCsvInvoiceForm({ initial }: { initial: CsvInvoiceEditable }) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -127,7 +133,16 @@ export default function EditCsvInvoiceForm({ initial }: { initial: CsvInvoiceEdi
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="text-sm text-gray-600">Mode</label>
-            <input type="text" value={toStr(form.mode)} onChange={onChange('mode')} className="w-full px-3 py-2 border rounded" />
+            <input
+              type="text"
+              value={toStr(form.mode)}
+              onChange={(e) => setForm(prev => ({
+                ...prev,
+                mode: e.currentTarget.value,
+                shipment_type: inferShipmentFromModeCode(e.currentTarget.value)
+              }))}
+              className="w-full px-3 py-2 border rounded"
+            />
           </div>
           <div>
             <label className="text-sm text-gray-600">Service Type</label>
@@ -139,7 +154,7 @@ export default function EditCsvInvoiceForm({ initial }: { initial: CsvInvoiceEdi
           </div>
           <div>
             <label className="text-sm text-gray-600">Shipment Type</label>
-            <input type="text" value={toStr(form.shipment_type)} onChange={onChange('shipment_type')} className="w-full px-3 py-2 border rounded" />
+            <input type="text" value={toStr(inferShipmentFromModeCode(form.mode))} readOnly className="w-full px-3 py-2 border rounded bg-gray-50" />
           </div>
           <div>
             <label className="text-sm text-gray-600">Service Code</label>

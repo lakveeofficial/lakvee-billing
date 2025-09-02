@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from 'react'
 import { Zap } from 'lucide-react'
+import ModalShell from '@/components/ModalShell'
 
 type Props = {
   ids: Array<string | number>
@@ -100,40 +101,15 @@ export default function GlobalApplyRatesButton({ ids, labels, partyNames }: Prop
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => !running && setOpen(false)} />
-          <div className="relative bg-white w-full max-w-2xl mx-4 rounded-lg shadow-lg border">
-            <div className="p-4 border-b flex items-center justify-between">
-              <h3 className="font-semibold text-gray-800 text-base">Apply Slab Rates — Results</h3>
-              <button className="text-gray-500 hover:text-gray-700" disabled={running} onClick={() => setOpen(false)}>✕</button>
-            </div>
-            <div className="p-4 space-y-3 max-h-[60vh] overflow-auto">
-              <div className="text-sm text-gray-700">
-                <span className="font-semibold">Summary:</span> {summary.ok} succeeded, {summary.fail} failed{results ? ` out of ${summary.total}` : ''}.
-              </div>
-              {running && (
-                <div className="text-sm text-blue-700">Processing… please wait.</div>
-              )}
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-gray-600">
-                    <th className="py-2 pr-2">Consignment No</th>
-                    <th className="py-2 pr-2">Status</th>
-                    <th className="py-2">Message</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {(results || []).map((r) => (
-                    <tr key={r.id} className={r.ok ? 'bg-emerald-50' : 'bg-rose-50'}>
-                      <td className="py-2 pr-2 font-mono text-xs">{r.label || r.id}</td>
-                      <td className="py-2 pr-2">{r.ok ? 'Success' : (r.message || 'Failed')}</td>
-                      <td className="py-2 whitespace-pre-wrap">{r.message}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="p-3 border-t flex items-center justify-end gap-2">
+        <ModalShell
+          isOpen={open}
+          onClose={() => !running && setOpen(false)}
+          title="Apply Slab Rates — Results"
+          icon={<Zap className="h-5 w-5" />}
+          size="lg"
+          closeOnOverlay={!running}
+          footer={(
+            <>
               <button
                 className="px-3 py-2 text-sm rounded border hover:bg-gray-50"
                 onClick={() => window.location.reload()}
@@ -144,9 +120,36 @@ export default function GlobalApplyRatesButton({ ids, labels, partyNames }: Prop
                 onClick={() => setOpen(false)}
                 disabled={running}
               >Close</button>
+            </>
+          )}
+        >
+          <div className="space-y-3 max-h-[60vh] overflow-auto">
+            <div className="text-sm text-gray-700">
+              <span className="font-semibold">Summary:</span> {summary.ok} succeeded, {summary.fail} failed{results ? ` out of ${summary.total}` : ''}.
             </div>
+            {running && (
+              <div className="text-sm text-blue-700">Processing… please wait.</div>
+            )}
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-gray-600">
+                  <th className="py-2 pr-2">Consignment No</th>
+                  <th className="py-2 pr-2">Status</th>
+                  <th className="py-2">Message</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {(results || []).map((r) => (
+                  <tr key={r.id} className={r.ok ? 'bg-emerald-50' : 'bg-rose-50'}>
+                    <td className="py-2 pr-2 font-mono text-xs">{r.label || r.id}</td>
+                    <td className="py-2 pr-2">{r.ok ? 'Success' : (r.message || 'Failed')}</td>
+                    <td className="py-2 whitespace-pre-wrap">{r.message}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
+        </ModalShell>
       )}
     </div>
   )

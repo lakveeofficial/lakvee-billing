@@ -20,7 +20,8 @@ export interface DistanceSlab {
 
 export interface ServiceType {
   id: number
-  code: 'EXPRESS' | 'STANDARD'
+  // Allow any code string to support dynamic, DB-driven service types
+  code: string
   title: string
   is_active: boolean
   created_at: string
@@ -29,7 +30,8 @@ export interface ServiceType {
 
 export interface Mode {
   id: number
-  code: 'AIR' | 'SURFACE'
+  // Updated to align with DB: use shipment-like codes; keep string to be future-proof
+  code: 'DOCUMENT' | 'NON_DOCUMENT' | string
   title: string
   is_active: boolean
   created_at: string

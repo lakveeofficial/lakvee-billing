@@ -108,6 +108,12 @@ function toDate(val: any): string | null {
   return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10)
 }
 
+function inferShipmentFromModeCode(mode?: string | null): 'DOCUMENT' | 'NON_DOCUMENT' {
+  const v = String(mode || '').trim().toUpperCase()
+  if (v === 'DOCUMENT' || v.startsWith('DOC')) return 'DOCUMENT'
+  return 'NON_DOCUMENT'
+}
+
 export function mapRecordToRow(record: Record<string, any>): CSVInvoiceRow {
   return {
     id: randomUUID(),
@@ -127,7 +133,8 @@ export function mapRecordToRow(record: Record<string, any>): CSVInvoiceRow {
     recipient_phone: record['RECIPIENT PHONE'] || null,
     recipient_address: record['RECIPIENT ADDRESS'] || null,
     booking_mode: record['MODE OF BOOKING'] || null,
-    shipment_type: record['SHIPMENT TYPE'] || null,
+    // Always infer shipment type from mode per new model
+    shipment_type: inferShipmentFromModeCode(record['MODE'] || null),
     risk_surcharge_amount: toNum(record['RISK SURCHARGE AMOUNT']),
     risk_surcharge_type: record['RISK SURCHARGE TYPE'] || null,
     contents: record['CONTENTS'] || null,

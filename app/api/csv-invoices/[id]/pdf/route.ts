@@ -434,7 +434,13 @@ function drawCourierAryanTemplate(doc: jsPDF, company: any, row: any) {
   let iy = y + 16
   const fmtDate = (d: any) => {
     if (!d) return ''
-    try { return new Date(d).toLocaleDateString('en-IN') } catch { return String(d) }
+    try {
+      const dt = new Date(d)
+      const dd = String(dt.getDate()).padStart(2, '0')
+      const mm = String(dt.getMonth() + 1).padStart(2, '0')
+      const yyyy = dt.getFullYear()
+      return `${dd}-${mm}-${yyyy}`
+    } catch { return String(d) }
   }
   const details = [
     `Party: ${String(row.sender_name || '')}`,
@@ -450,9 +456,10 @@ function drawCourierAryanTemplate(doc: jsPDF, company: any, row: any) {
   // Items table header
   const tLeft = left
   const tWidth = pageWidth - left * 2 // keep 40pt margins on both sides => 515 on A4
-  // Column widths: [SNO, ITEM, DATE, DEST, WEIGHT, AMOUNT] must sum to tWidth
+  // Column widths: [SNO, DATE, ITEM, DEST, WEIGHT, AMOUNT] must sum to tWidth
   const cW = {
     sno: 40,
+    // Keep width assignments but we'll render Booking Date in the second column and Consignment No in the third
     item: 140,
     date: 110,
     dest: 110,
@@ -461,9 +468,9 @@ function drawCourierAryanTemplate(doc: jsPDF, company: any, row: any) {
   }
   const cols = [
     tLeft,                          // S.NO left
-    tLeft + cW.sno,                 // ITEM left
-    tLeft + cW.sno + cW.item,       // DATE left
-    tLeft + cW.sno + cW.item + cW.date, // DEST left
+    tLeft + cW.sno,                 // DATE left (now second)
+    tLeft + cW.sno + cW.date,       // ITEM left (now third)
+    tLeft + cW.sno + cW.date + cW.item, // DEST left
     tLeft + cW.sno + cW.item + cW.date + cW.dest, // WEIGHT left
     tLeft + cW.sno + cW.item + cW.date + cW.dest + cW.wt, // AMOUNT left
     tLeft + tWidth                   // table right edge
@@ -476,8 +483,8 @@ function drawCourierAryanTemplate(doc: jsPDF, company: any, row: any) {
   for (let i = 0; i < cols.length; i++) { doc.line(cols[i], headerTop, cols[i], headerTop + rowH) }
   doc.setFont('helvetica', 'bold'); doc.setFontSize(10)
   doc.text('S.NO.', cols[0] + 6, headerTop + 14)
-  doc.text('CONSIGNMENT NO', cols[1] + 6, headerTop + 14)
-  doc.text('BOOKING DATE', cols[2] + 6, headerTop + 14)
+  doc.text('BOOKING DATE', cols[1] + 6, headerTop + 14)
+  doc.text('CONSIGNMENT NO', cols[2] + 6, headerTop + 14)
   doc.text('DESTINATION', cols[3] + 6, headerTop + 14)
   doc.text('WEIGHT', cols[4] + 6, headerTop + 14)
   doc.text('Amount', cols[5] + 6, headerTop + 14)
@@ -487,7 +494,8 @@ function drawCourierAryanTemplate(doc: jsPDF, company: any, row: any) {
   // Wrap item and destination; compute dynamic row height
   const padX = 6
   const cellLineH = 12
-  const itemText = doc.splitTextToSize(String(row.consignment_no || row.booking_reference || '-'), (cols[2] - cols[1]) - padX*2)
+  // Consignment now in third column, so wrap against width between cols[3] and cols[2]
+  const itemText = doc.splitTextToSize(String(row.consignment_no || row.booking_reference || '-'), (cols[3] - cols[2]) - padX*2)
   const destText = doc.splitTextToSize(String(distanceDisplay((row.region || row.destination || '') as any, row.recipient_address)), (cols[4] - cols[3]) - padX*2)
   const linesCount = Math.max(itemText.length || 1, destText.length || 1)
   const dataRowH = Math.max(rowH, 14 + (linesCount - 1) * cellLineH)
@@ -498,8 +506,10 @@ function drawCourierAryanTemplate(doc: jsPDF, company: any, row: any) {
   // Fill data
   doc.setFont('helvetica', 'normal'); doc.setFontSize(10)
   doc.text('1', cols[0] + padX, dataTop + 14)
-  doc.text(itemText, cols[1] + padX, dataTop + 14)
-  doc.text(fmtDate(row.booking_date), cols[2] + padX, dataTop + 14)
+  // Booking Date now second column
+  doc.text(fmtDate(row.booking_date), cols[1] + padX, dataTop + 14)
+  // Consignment No now third column
+  doc.text(itemText, cols[2] + padX, dataTop + 14)
   doc.text(destText, cols[3] + padX, dataTop + 14)
   doc.text(String(row.weight || row.chargeable_weight || ''), cols[4] + padX, dataTop + 14)
   // Use base + slab for gross (for totals/words); show Base Rate only in Amount column

@@ -6,6 +6,8 @@ import { RateSlab, SlabType, SlabDistanceCategory } from "@/types/slab";
 import { DistanceCategoryStorage } from "@/lib/distanceCategoryStorage";
 import { Plus, Edit, Trash2, Upload, Download } from "lucide-react";
 import PageHeader from '@/components/PageHeader'
+import ModalShell from '@/components/ModalShell'
+import ConfirmDialog from '@/components/ConfirmDialog'
 import SlabForm from "./SlabForm";
 import DistanceCategoryConfigPanel from "./DistanceCategoryConfigPanel";
 import Papa from "papaparse";
@@ -187,15 +189,18 @@ export default function SlabMasterPage() {
         }
       />
       {showForm && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-30 flex items-center justify-center">
-          <div className="bg-white rounded shadow-lg p-0 max-w-lg w-full relative">
-            <SlabForm
-              initialSlab={editingSlab}
-              onSave={handleSaveSlab}
-              onCancel={handleCancelSlab}
-            />
-          </div>
-        </div>
+        <ModalShell
+          isOpen={showForm}
+          onClose={handleCancelSlab}
+          title={editingSlab ? 'Edit Slab' : 'New Slab'}
+          size="md"
+        >
+          <SlabForm
+            initialSlab={editingSlab}
+            onSave={handleSaveSlab}
+            onCancel={handleCancelSlab}
+          />
+        </ModalShell>
       )}
       <div className="bg-white shadow rounded p-4">
         <div className="flex justify-between mb-4">
@@ -302,26 +307,16 @@ export default function SlabMasterPage() {
       </div>
     {/* Delete Confirmation Dialog */}
     {showDeleteDialog && deleteTarget && (
-      <div className="fixed inset-0 z-50 bg-black bg-opacity-30 flex items-center justify-center">
-        <div className="bg-white rounded shadow-lg p-6 max-w-sm w-full">
-          <h2 className="text-lg font-semibold mb-4">Delete Slab</h2>
-          <p>Are you sure you want to delete the slab <span className="font-bold">{deleteTarget.slabLabel}</span>?</p>
-          <div className="mt-6 flex justify-end space-x-3">
-            <button
-              className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
-              onClick={cancelDeleteSlab}
-            >
-              Cancel
-            </button>
-            <button
-              className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700"
-              onClick={confirmDeleteSlab}
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      </div>
+      <ConfirmDialog
+        isOpen={showDeleteDialog}
+        title="Delete Slab"
+        message={`Are you sure you want to delete the slab ${deleteTarget.slabLabel}?`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        destructive
+        onConfirm={confirmDeleteSlab}
+        onCancel={cancelDeleteSlab}
+      />
     )}
   </div>
   );

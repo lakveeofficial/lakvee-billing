@@ -3,6 +3,7 @@ import { useState } from "react";
 import { DistanceCategoryStorage } from "@/lib/distanceCategoryStorage";
 import { INDIAN_STATES } from "@/types/party";
 import { DistanceCategoryConfig, MetroCityConfig } from "@/types/slab";
+import ModalShell from "@/components/ModalShell";
 
 export default function DistanceCategoryConfigPanel({ onClose }: { onClose: () => void }) {
   const [config, setConfig] = useState<DistanceCategoryConfig>(() => DistanceCategoryStorage.getConfig());
@@ -45,11 +46,16 @@ export default function DistanceCategoryConfigPanel({ onClose }: { onClose: () =
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-      <div className="bg-white rounded shadow-lg max-w-2xl w-full p-6 relative">
-        <button className="absolute top-2 right-2 text-gray-500 hover:text-black" onClick={onClose}>&times;</button>
-        <h2 className="text-xl font-bold mb-4">Configure Distance Slab Categories</h2>
-        <div className="mb-6">
+    <ModalShell
+      isOpen={true}
+      onClose={onClose}
+      title="Configure Distance Slab Categories"
+      size="lg"
+      footer={(
+        <button className="mt-2 px-4 py-2 rounded bg-gray-500 text-white" onClick={onClose}>Close</button>
+      )}
+    >
+      <div className="mb-6">
           <h3 className="font-semibold mb-2">Metro Cities</h3>
           <div className="flex mb-2 gap-2">
             <select value={newMetroState} onChange={e => setNewMetroState(e.target.value)} className="border rounded px-2 py-1">
@@ -107,8 +113,6 @@ export default function DistanceCategoryConfigPanel({ onClose }: { onClose: () =
           </ul>
         </div>
         {error && <div className="text-red-600 mb-2">{error}</div>}
-        <button className="mt-4 px-4 py-2 rounded bg-gray-500 text-white" onClick={onClose}>Close</button>
-      </div>
-    </div>
+    </ModalShell>
   );
 }

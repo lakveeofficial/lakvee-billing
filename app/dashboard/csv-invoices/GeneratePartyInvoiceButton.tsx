@@ -116,15 +116,21 @@ export default function GeneratePartyInvoiceButton({ rows, defaultParty }: Props
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => !submitting && setOpen(false)} />
-          <div className="relative bg-white w-full max-w-xl mx-4 rounded-lg shadow-lg border">
-            <div className="p-4 border-b flex items-center justify-between">
-              <h3 className="font-semibold text-gray-800 text-base">Generate Party Invoice</h3>
-              <button className="text-gray-500 hover:text-gray-700" disabled={submitting} onClick={() => setOpen(false)}>✕</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-xl overflow-hidden rounded-2xl shadow-2xl border border-white/10">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-primary-600 to-emerald-600 px-6 py-4 text-white">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FilePlus2 className="h-5 w-5" />
+                  <h3 className="text-lg font-semibold">Generate Party Invoice</h3>
+                </div>
+                <button className="text-white/80 hover:text-white" disabled={submitting} onClick={() => setOpen(false)}>✕</button>
+              </div>
             </div>
 
-            <div className="p-4 space-y-3">
+            {/* Body */}
+            <div className="bg-white px-6 py-5 space-y-3">
               <div className="text-xs text-gray-500">Consignments selected: {ids.length} for party {partyName ? `“${partyName}”` : '(not selected)'} {useAllFiltered ? '(all filtered)' : '(current page)'}.</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label className="flex flex-col text-sm">
@@ -200,10 +206,11 @@ export default function GeneratePartyInvoiceButton({ rows, defaultParty }: Props
               )}
             </div>
 
-            <div className="p-3 border-t flex items-center justify-end gap-2">
-              <button className="px-3 py-2 text-sm rounded border hover:bg-gray-50" onClick={() => setOpen(false)} disabled={submitting}>Close</button>
+            {/* Footer */}
+            <div className="bg-white px-6 pb-6 flex items-center justify-end gap-2">
+              <button className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50" onClick={() => setOpen(false)} disabled={submitting}>Close</button>
               <button
-                className="px-3 py-2 text-sm rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-white bg-gradient-to-r from-primary-600 to-emerald-600 hover:from-primary-700 hover:to-emerald-700 disabled:opacity-60"
                 onClick={submit}
                 disabled={!canSubmit || submitting}
               >{submitting ? 'Creating…' : 'Create Invoice'}</button>

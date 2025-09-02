@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Calendar, CreditCard, Hash, StickyNote, IndianRupee } from 'lucide-react'
+import ModalShell from '@/components/ModalShell'
 
 export default function QuickReceiveModal({
   isOpen,
@@ -83,27 +84,34 @@ export default function QuickReceiveModal({
     }
   }
 
-  if (!isOpen) return null
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
-        {/* Header */}
-        <div className="relative bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 px-6 py-5">
-          <div className="flex items-center gap-3 text-white">
-            <div className="rounded-xl bg-white/15 p-2">
-              <IndianRupee className="h-5 w-5" />
-            </div>
-            <div>
-              <h4 className="text-lg font-semibold leading-tight">Receive Payment</h4>
-              <p className="text-xs/5 text-white/90">Outstanding: ₹ {outstanding.toFixed(2)}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Body */}
-        <div className="px-6 py-5">
-          <div className="grid grid-cols-1 gap-4">
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Receive Payment"
+      icon={<IndianRupee className="h-5 w-5" />}
+      size="md"
+      footer={(
+        <>
+          <button
+            className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+            onClick={onClose}
+            disabled={saving}
+          >
+            Cancel
+          </button>
+          <button
+            className="rounded-lg bg-gradient-to-r from-primary-600 to-emerald-600 px-4 py-2 font-medium text-white shadow hover:from-primary-700 hover:to-emerald-700 disabled:opacity-60"
+            onClick={save}
+            disabled={saving}
+          >
+            {saving ? 'Saving…' : 'Save Payment'}
+          </button>
+        </>
+      )}
+    >
+      <div className="mb-3 text-xs text-gray-600">Outstanding: ₹ {outstanding.toFixed(2)}</div>
+      <div className="grid grid-cols-1 gap-4">
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Date</label>
               <div className="relative">
@@ -168,25 +176,6 @@ export default function QuickReceiveModal({
               </div>
             </div>
           </div>
-
-          <div className="mt-6 flex justify-end gap-3">
-            <button
-              className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50 disabled:opacity-60"
-              onClick={onClose}
-              disabled={saving}
-            >
-              Cancel
-            </button>
-            <button
-              className="rounded-lg bg-gradient-to-r from-emerald-600 to-green-600 px-4 py-2 font-medium text-white shadow hover:from-emerald-700 hover:to-green-700 disabled:opacity-60"
-              onClick={save}
-              disabled={saving}
-            >
-              {saving ? 'Saving…' : 'Save Payment'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    </ModalShell>
   )
 }
