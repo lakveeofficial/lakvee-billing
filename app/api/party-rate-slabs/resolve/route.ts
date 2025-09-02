@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const partyId = Number(searchParams.get('partyId'))
-  const shipmentType = searchParams.get('shipmentType') as 'DOCUMENT' | 'NON_DOCUMENT' | null
+  const shipmentType = (searchParams.get('shipmentType') || '').toUpperCase() as 'DOCUMENT' | 'NON_DOCUMENT' | null
   const modeId = Number(searchParams.get('modeId'))
   const serviceTypeId = Number(searchParams.get('serviceTypeId'))
   const distanceSlabId = Number(searchParams.get('distanceSlabId'))
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
        FROM party_rate_slabs prs
        JOIN weight_slabs ws ON ws.id = prs.slab_id
        WHERE prs.party_id = $1 
-         AND prs.shipment_type = $2 
+         AND UPPER(prs.shipment_type) = $2 
          AND prs.mode_id = $3 
          AND prs.service_type_id = $4 
          AND prs.distance_slab_id = $5 

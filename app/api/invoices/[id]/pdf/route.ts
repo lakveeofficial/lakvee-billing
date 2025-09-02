@@ -78,14 +78,18 @@ function drawHeaderStyled(doc: jsPDF, company: any, title: string, style: Templa
 
   // Title and decorative line if needed
   const titleY = Math.max(88, logoBottomY + 8, y2 + 10)
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(18)
+  // Consistent title font for all templates
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(15)
   doc.text(title, left, titleY)
   if (style.variant === 'line') {
     doc.setDrawColor(...style.accent); doc.setLineWidth(1.2); doc.line(left, titleY + 6, pageWidth - left, titleY + 6)
   }
   // reset text color for body
   doc.setTextColor(0, 0, 0)
-  return Math.max(94, titleY + 26)
+  // IMPORTANT: reset font so subsequent content uses body font
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.0)
+  // Ensure enough gap below header band/logo on all pages
+  return Math.max(130, titleY + 30)
 }
 
 function drawSignature(doc: jsPDF, company: any) {
@@ -229,6 +233,28 @@ function addWatermark(doc: jsPDF, logoDataUrl: string) {
   } catch {}
 }
 
+// Draw footer with page numbers and printed timestamp on every page
+function drawFooters(doc: jsPDF, printedAt: string) {
+  try {
+    const pageCount = (doc as any).getNumberOfPages ? (doc as any).getNumberOfPages() : 1
+    for (let i = 1; i <= pageCount; i++) {
+      ;(doc as any).setPage(i)
+      const pageW = doc.internal.pageSize.getWidth()
+      const pageH = doc.internal.pageSize.getHeight()
+      const left = 40
+      const right = pageW - 40
+      const y = pageH - 28
+      doc.setTextColor(120)
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8)
+      // Left: Printed timestamp
+      doc.text(`Printed: ${printedAt}`, left, y)
+      // Right: Page number like "1 of N"
+      doc.text(`${i} of ${pageCount}`, right, y, { align: 'right' as any })
+      doc.setTextColor(0)
+    }
+  } catch {}
+}
+
 function drawHeader(doc: jsPDF, company: any, title: string) {
   const pageWidth = doc.internal.pageSize.getWidth()
   const left = 40
@@ -274,7 +300,8 @@ function drawHeader(doc: jsPDF, company: any, title: string) {
   // Place title below both logo and right-side info to avoid overlap
   const titleY = Math.max(88, logoBottomY + 8, y2 + 10)
   doc.text(title, left, titleY)
-  return Math.max(94, titleY + 26)
+  // Ensure a larger gap below the header so table content on new pages never overlaps the header area
+  return Math.max(130, titleY + 30)
 }
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
@@ -337,6 +364,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     if (template && template !== 'courier_aryan') {
       const styled = getTemplateStyle(template)
       let y = drawHeaderStyled(doc, company, 'Tax Invoice', styled)
+      // Enforce a larger minimum start Y for content under styled headers
+      y = Math.max(y, 180)
       const left = 40
       const right = doc.internal.pageSize.getWidth() - 40
 
@@ -369,7 +398,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       type Align = 'left' | 'center' | 'right'
       const aligns: Align[] = ['center','left','left','left','left','left','right','right']
       const headerAligns: Align[] = ['center','center','center','center','center','center','right','right']
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5)
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.0)
       doc.setDrawColor(180)
       doc.setLineWidth(0.15)
 
@@ -395,18 +424,18 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       const widths: number[] = new Array(headers.length).fill(0)
       const measure = (txt: string) => doc.getTextWidth(txt)
       for (let c = 0; c < headers.length; c++) { widths[c] = Math.min(maxW[c], Math.max(minW[c], measure(headers[c]) + padd)) }
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5)
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.0)
       for (const r of rows) { for (let c = 0; c < r.length; c++) { widths[c] = Math.min(maxW[c], Math.max(widths[c], measure(String(r[c])) + padd)) } }
       let sumW = widths.reduce((a,b)=>a+b,0)
       const targetW = 515
       if (sumW !== targetW) { const scale = targetW / sumW; for (let i = 0; i < widths.length; i++) { widths[i] = Math.max(minW[i], Math.min(maxW[i], widths[i] * scale)) } const delta = targetW - widths.reduce((a,b)=>a+b,0); widths[widths.length-1] += delta }
       const x2: number[] = []; { let acc = left; for (const w of widths) { x2.push(acc); acc += w } }
 
-      const headerH = 24
+      const headerH = 22
       if (styled.tableHeaderFill) { doc.setFillColor(...styled.accent); doc.rect(x2[0], y, targetW, headerH, 'F'); doc.setTextColor(255,255,255) } else { doc.rect(x2[0], y, targetW, headerH); doc.setTextColor(0,0,0) }
       for (let i = 1; i < x2.length; i++) { doc.line(x2[i], y, x2[i], y + headerH) }
       const hc = (idx:number)=> x2[idx] + widths[idx] / 2
-      const headerBaseline = y + headerH / 2 + 5
+      const headerBaseline = y + headerH / 2 + 4
       for (let c = 0; c < headers.length; c++) {
         if (headerAligns[c] === 'right') doc.text(headers[c], x2[c] + widths[c] - cellPadR, headerBaseline, { align: 'right' as any })
         else if (headerAligns[c] === 'center') doc.text(headers[c], hc(c), headerBaseline, { align: 'center' as any })
@@ -415,11 +444,11 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       doc.setTextColor(0,0,0)
       y += headerH
 
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5)
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.0)
       const pageHeight = doc.internal.pageSize.getHeight()
       const bottomMargin = 140
-      const lineH = 9.2
-      const vPad = 12
+      const lineH = 8.8
+      const vPad = 10
       let subtotalBase = 0
       let rowIndex = 0
       for (const it of consignments) {
@@ -436,13 +465,18 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         }
         if (y + rowH > pageHeight - bottomMargin) {
           doc.addPage(); if (lakveeLogo) { addWatermark(doc, lakveeLogo) }
-          y = drawHeaderStyled(doc, company, 'Tax Invoice', styled)
+          // Start further below header on new pages and enforce a larger minimum Y
+          y = drawHeaderStyled(doc, company, 'Tax Invoice', styled) + 24
+          y = Math.max(y, 180)
           // redraw header row
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(8.0)
           if (styled.tableHeaderFill) { doc.setFillColor(...styled.accent); doc.rect(x2[0], y, headerH + targetW - headerH, headerH, 'F'); doc.setTextColor(255,255,255) } else { doc.rect(x2[0], y, targetW, headerH); doc.setTextColor(0,0,0) }
           for (let i = 1; i < x2.length; i++) { doc.line(x2[i], y, x2[i], y + headerH) }
           const headerBaseline2 = y + headerH / 2 + 5
           for (let c = 0; c < headers.length; c++) { if (headerAligns[c] === 'right') doc.text(headers[c], x2[c] + widths[c] - cellPadR, headerBaseline2, { align: 'right' as any }); else if (headerAligns[c] === 'center') doc.text(headers[c], hc(c), headerBaseline2, { align: 'center' as any }); else doc.text(headers[c], x2[c] + cellPadL, headerBaseline2) }
           y += headerH; doc.setTextColor(0,0,0)
+          // reset to body font for rows
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(8.0)
         }
         subtotalBase += Number(rows[rowIndex][7].replace(/,/g,'')) || 0
         doc.rect(x2[0], y, targetW, rowH)
@@ -450,8 +484,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         for (let c = 0; c < cellLines.length; c++) {
           const lines = cellLines[c]; const startX = aligns[c] === 'right' ? x2[c] + widths[c] - cellPadR : aligns[c] === 'center' ? x2[c] + widths[c]/2 : (c === 3 ? x2[c] + 4 : x2[c] + cellPadL)
           let offsetY = y + vPad + lineH
-          const restoreSize = 8.5
-          if (c === 3) doc.setFontSize(8.0)
+          const restoreSize = 8.0
+          if (c === 3) doc.setFontSize(7.8)
           for (const ln of lines) { if (aligns[c] === 'right') doc.text(String(ln), startX, offsetY, { align: 'right' as any }); else if (aligns[c] === 'center') doc.text(String(ln), startX, offsetY, { align: 'center' as any }); else doc.text(String(ln), startX, offsetY); offsetY += lineH }
           if (c === 3) doc.setFontSize(restoreSize)
         }
@@ -536,10 +570,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
       // Signature and return
       drawSignature(doc, company)
+      // Footers: page numbers and printed timestamp
+      const now = new Date(); const dd = String(now.getDate()).padStart(2,'0'); const mm = String(now.getMonth()+1).padStart(2,'0'); const yy = now.getFullYear(); const hh = String(now.getHours()).padStart(2,'0'); const min = String(now.getMinutes()).padStart(2,'0');
+      const printedAt = `${dd}-${mm}-${yy} ${hh}:${min}`
+      drawFooters(doc, printedAt)
       const pdfBytes2 = doc.output('arraybuffer') as ArrayBuffer
       return new NextResponse(Buffer.from(pdfBytes2), { status: 200, headers: { 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="invoice-${inv.invoice_number}.pdf"`, 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0', Pragma: 'no-cache', Expires: '0' } })
-    }
 
+    } else {
     let y = drawHeader(doc, company, 'Tax Invoice')
 
     const left = 40
@@ -581,7 +619,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const aligns: Align[] = ['center','left','left','left','left','left','right','right']
     // Header alignment
     const headerAligns: Align[] = ['center','center','center','center','center','center','right','right']
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5)
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.0)
     doc.setDrawColor(180)
     doc.setLineWidth(0.15)
 
@@ -626,7 +664,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       widths[c] = Math.min(maxW[c], Math.max(minW[c], measure(headers[c]) + padd))
     }
     // Expand per cell content
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5)
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.0)
     for (const r of rows) {
       for (let c = 0; c < r.length; c++) {
         widths[c] = Math.min(maxW[c], Math.max(widths[c], measure(String(r[c])) + padd))
@@ -651,8 +689,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     { let acc = left; for (const w of widths) { x2.push(acc); acc += w } }
 
     // Draw header row
-    const headerH = 24
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5)
+    const headerH = 22
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.0)
     doc.rect(x2[0], y, targetW, headerH)
     for (let i = 1; i < x2.length; i++) { doc.line(x2[i], y, x2[i], y + headerH) }
     const hc = (idx:number)=> x2[idx] + widths[idx] / 2
@@ -665,22 +703,17 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     y += headerH
 
     // Rows with wrapping and dynamic height
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5)
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.0)
     const pageHeight = doc.internal.pageSize.getHeight()
     const bottomMargin = 140
-    const lineH = 9.2
-    const vPad = 12
+    const lineH = 8.8
+    const vPad = 10
     let subtotalBase = 0
     let rowIndex = 0
     for (const it of consignments) {
       // compute row height based on wrapped content
       const cellLines: string[][] = []
       let rowH = 0
-      {
-        const qty = 1
-        const weight = Number(it.chargeable_weight ?? it.weight ?? 0)
-        const base = Number(it.retail_price ?? it.prepaid_amount ?? it.final_collected ?? 0)
-      }
       const data = rows[rowIndex]
       for (let c = 0; c < data.length; c++) {
         const content = String(data[c])
@@ -697,17 +730,17 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         if (lakveeLogo) { addWatermark(doc, lakveeLogo) }
         y = drawHeader(doc, company, 'Tax Invoice')
         // redraw header on new page
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5)
-        doc.rect(x2[0], y, targetW, headerH)
-        for (let i = 1; i < x2.length; i++) { doc.line(x2[i], y, x2[i], y + headerH) }
-        const headerBaseline2 = y + headerH / 2 + 5
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(8.0)
+        doc.rect(x2[0], y, targetW, 22) // headerH standardized to 22
+        for (let i = 1; i < x2.length; i++) { doc.line(x2[i], y, x2[i], y + 22) }
+        const headerBaseline2 = y + 22 / 2 + 5
         for (let c = 0; c < headers.length; c++) {
           if (headerAligns[c] === 'right') doc.text(headers[c], x2[c] + widths[c] - cellPadR, headerBaseline2, { align: 'right' as any })
           else if (headerAligns[c] === 'center') doc.text(headers[c], hc(c), headerBaseline2, { align: 'center' as any })
           else doc.text(headers[c], x2[c] + cellPadL, headerBaseline2)
         }
-        y += headerH
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5)
+        y += 22
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.0)
       }
       // Draw row box and separators
       subtotalBase += Number(rows[rowIndex][7].replace(/,/g,'')) || 0
@@ -826,6 +859,10 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     // Draw signature on the final page
     drawSignature(doc, company)
+    // Footers: page numbers and printed timestamp
+    const now = new Date(); const dd = String(now.getDate()).padStart(2,'0'); const mm = String(now.getMonth()+1).padStart(2,'0'); const yy = now.getFullYear(); const hh = String(now.getHours()).padStart(2,'0'); const min = String(now.getMinutes()).padStart(2,'0')
+    const printedAt = `${dd}-${mm}-${yy} ${hh}:${min}`
+    drawFooters(doc, printedAt)
     const pdfBytes = doc.output('arraybuffer') as ArrayBuffer
     return new NextResponse(Buffer.from(pdfBytes), {
       status: 200,
@@ -837,6 +874,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         Expires: '0'
       }
     })
+    }
   } catch (e) {
     console.error('Error generating invoice PDF:', e)
     return NextResponse.json({ error: 'Failed to generate PDF' }, { status: 500 })

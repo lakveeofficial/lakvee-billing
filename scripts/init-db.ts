@@ -254,6 +254,33 @@ async function initializeDatabase() {
       `);
     }
 
+    // Add normalized unique index on parties.party_name to prevent duplicates caused by whitespace/case variants
+    // We first detect duplicates; if any exist, we skip creating the index and log a warning.
+    console.log('Ensuring normalized unique index on parties.party_name...');
+    const dupCheck = await client.query(`
+      WITH normalized AS (
+        SELECT LOWER(TRIM(REGEXP_REPLACE(party_name, '\\s+', ' ', 'g'))) AS norm
+        FROM parties
+      ),
+      agg AS (
+        SELECT norm, COUNT(*) AS cnt FROM normalized GROUP BY norm
+      )
+      SELECT COALESCE(MAX(cnt), 0) AS max_cnt FROM agg;
+    `);
+    const maxCnt = Number(dupCheck.rows?.[0]?.max_cnt || 0);
+    if (maxCnt <= 1) {
+      await client.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS parties_party_name_normalized_uniq
+        ON parties (
+          LOWER(TRIM(REGEXP_REPLACE(party_name, '\\s+', ' ', 'g')))
+        )
+      `);
+      console.log('Normalized unique index ensured on parties.party_name');
+    } else {
+      console.warn('Skipped creating normalized unique index on parties.party_name due to existing duplicates.');
+      console.warn('Run scripts/find-duplicate-parties.sql, merge duplicates, then create the index.');
+    }
+
     console.log('Creating invoices table...');
     await client.query(`
       CREATE TABLE IF NOT EXISTS invoices (

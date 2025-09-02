@@ -1,4 +1,6 @@
 import { ensureCsvInvoicesTable, listCsvInvoices } from '@/lib/csvInvoices'
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 import { Eye, Pencil, FileSpreadsheet, Search } from 'lucide-react'
 import DeleteRowButton from './DeleteRowButton'
 import PrintPdfButton from './PrintPdfButton'
@@ -134,7 +136,12 @@ export default async function CsvInvoicesPage({ searchParams }: { searchParams: 
             }))}
             partyNames={Object.fromEntries((filteredRows || []).map((r: any) => [String(r.id), String(r.sender_name || '')]))}
           />
-          <GeneratePartyInvoiceButton rows={(filteredRows || [])} defaultParty={party || undefined} />
+          <GeneratePartyInvoiceButton
+            rows={(filteredRows || [])}
+            defaultParty={party || undefined}
+            query={q}
+            partyFilter={party}
+          />
           {/* GeneratePartyInvoicesButton disabled */}
         </div>
       </form>

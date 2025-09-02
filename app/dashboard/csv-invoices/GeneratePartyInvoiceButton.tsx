@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { FilePlus2 } from 'lucide-react'
 
 type Row = { id: string | number; [key: string]: any }
@@ -8,12 +8,18 @@ type Row = { id: string | number; [key: string]: any }
 type Props = {
   rows: Row[]
   defaultParty?: string
+  // Current filters from page so we can fetch all matching consignments across pages
+  query?: string
+  partyFilter?: string
 }
 
-export default function GeneratePartyInvoiceButton({ rows, defaultParty }: Props) {
+export default function GeneratePartyInvoiceButton({ rows, defaultParty, query, partyFilter }: Props) {
   const [open, setOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [partyName, setPartyName] = useState(defaultParty || '')
+  // Parties from API and selected partyId
+  const [apiParties, setApiParties] = useState<Array<{ id: string; partyName: string }>>([])
+  const [selectedPartyId, setSelectedPartyId] = useState<string>('')
   const [gstPercent, setGstPercent] = useState<string>('')
   // Removed: shipmentType, mode, serviceType, distanceRegion, weightSlab, baseRate (not required)
   const [fuelPct, setFuelPct] = useState('')
@@ -28,8 +34,8 @@ export default function GeneratePartyInvoiceButton({ rows, defaultParty }: Props
 
   // Normalize helper
   const norm = (v: any) => String(v || '').trim().toLowerCase()
-  // Parties present in current dataset
-  const parties = useMemo(() => {
+  // Parties present in current dataset (for fallback name prefill only)
+  const datasetParties = useMemo(() => {
     const set = new Set((rows || []).map(r => String(r.sender_name || '').trim()).filter(Boolean))
     return Array.from(set) as string[]
   }, [rows])
@@ -45,10 +51,42 @@ export default function GeneratePartyInvoiceButton({ rows, defaultParty }: Props
     return set.size === 1 ? (rows[0]?.sender_name || '') : ''
   }, [rows])
 
-  const canSubmit = ids.length > 0 && !!partyName
+  const canSubmit = ids.length > 0 && (!!selectedPartyId || !!partyName)
+
+  // Load parties from API
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/parties', { credentials: 'include' })
+        if (!res.ok) return
+        const j = await res.json()
+        const list = (j.data || []).map((row: any) => ({ id: String(row.id), partyName: row.partyName || row.party_name || 'Unknown' }))
+        if (!cancelled) setApiParties(list)
+      } catch {}
+    })()
+    return () => { cancelled = true }
+  }, [])
+
+  // When user selects a partyId, mirror its name into partyName to filter dataset rows accordingly
+  useEffect(() => {
+    try {
+      if (!selectedPartyId) return
+      const p = apiParties.find(p => p.id === selectedPartyId)
+      if (p && p.partyName) setPartyName(p.partyName)
+    } catch {}
+  }, [selectedPartyId, apiParties])
 
   const onOpen = () => {
     if (!partyName && partyFromRows) setPartyName(partyFromRows)
+    // Try to auto-select partyId based on default/fallback party name
+    try {
+      const target = (partyName || partyFromRows || '').trim().toLowerCase()
+      if (target && apiParties.length > 0 && !selectedPartyId) {
+        const match = apiParties.find(p => (p.partyName || '').trim().toLowerCase() === target)
+        if (match) setSelectedPartyId(match.id)
+      }
+    } catch {}
     // Prefill from consistent values across rows
     const pickIfUniform = (getter: (r: Row) => any) => {
       const vals = new Set((rows || []).map(getter).map((v: any) => (v == null ? '' : String(v))).map(s => s.trim()))
@@ -75,12 +113,28 @@ export default function GeneratePartyInvoiceButton({ rows, defaultParty }: Props
     setError(null)
     setResult(null)
     try {
+      // If using all filtered across pages, fetch ids via API to include page 2+
+      let effectiveIds = ids
+      if (useAllFiltered) {
+        try {
+          const params = new URLSearchParams()
+          if (query) params.set('q', query)
+          if (partyFilter || partyName) params.set('party', String(partyFilter || partyName))
+          const resIds = await fetch(`/api/csv-invoices/ids?${params.toString()}`, { cache: 'no-store' })
+          if (resIds.ok) {
+            const data = await resIds.json()
+            if (Array.isArray(data?.ids)) effectiveIds = data.ids.map((x: any) => String(x))
+          }
+        } catch {}
+      }
       const res = await fetch('/api/party-invoices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          rowIds: ids,
-          partyName: partyName || partyFromRows || undefined,
+          rowIds: effectiveIds,
+          // Prefer partyId, fallback to partyName for legacy behavior
+          partyId: selectedPartyId ? Number(selectedPartyId) : undefined,
+          partyName: (!selectedPartyId ? (partyName || partyFromRows || undefined) : undefined),
           gst_percent: gstPercent ? Number(gstPercent) : undefined,
           // Removed fields not required for party invoice creation
           fuel_pct: fuelPct ? Number(fuelPct) : undefined,
@@ -131,14 +185,17 @@ export default function GeneratePartyInvoiceButton({ rows, defaultParty }: Props
 
             {/* Body */}
             <div className="bg-white px-6 py-5 space-y-3">
-              <div className="text-xs text-gray-500">Consignments selected: {ids.length} for party {partyName ? `“${partyName}”` : '(not selected)'} {useAllFiltered ? '(all filtered)' : '(current page)'}.</div>
+              <div className="text-xs text-gray-500">Consignments selected: {ids.length} for party {(() => {
+                const p = apiParties.find(p => p.id === selectedPartyId)
+                return p ? `“${p.partyName}”` : (partyName ? `“${partyName}”` : '(not selected)')
+              })()} {useAllFiltered ? '(all filtered)' : '(current page)'}.</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label className="flex flex-col text-sm">
                   <span className="text-gray-700">Party</span>
-                  <select className="border rounded px-2 py-1" value={partyName} onChange={e => setPartyName(e.target.value)}>
+                  <select className="border rounded px-2 py-1" value={selectedPartyId} onChange={e => setSelectedPartyId(e.target.value)}>
                     <option value="">Select party…</option>
-                    {parties.map(p => (
-                      <option key={p} value={p}>{p}</option>
+                    {apiParties.map(p => (
+                      <option key={p.id} value={p.id}>{p.partyName}</option>
                     ))}
                   </select>
                 </label>
@@ -181,24 +238,25 @@ export default function GeneratePartyInvoiceButton({ rows, defaultParty }: Props
                 <div className="text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded px-2 py-2">
                   Invoice created: <span className="font-mono">{result.invoice_number}</span> — <button 
                     className="underline text-emerald-800 hover:text-emerald-900" 
-                    onClick={async () => {
-                      try {
-                        const response = await fetch(`/api/party-invoices/${result.id}/pdf`, {
-                          method: 'GET',
-                          credentials: 'include',
-                          headers: { 'Accept': 'application/pdf' }
-                        })
-                        if (response.ok) {
-                          const blob = await response.blob()
-                          const blobUrl = URL.createObjectURL(blob)
-                          window.open(blobUrl, '_blank', 'noopener,noreferrer')
-                          setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
-                        } else {
-                          alert('Failed to open PDF. Please try again.')
-                        }
-                      } catch (error) {
-                        console.error('Error opening PDF:', error)
-                        alert('Failed to open PDF. Please try again.')
+                    onClick={() => {
+                      // Use existing invoices PDF route
+                      const url = `/api/invoices/${result.id}/pdf`
+                      const win = window.open(url, '_blank', 'noopener,noreferrer')
+                      if (!win) {
+                        // Popup blocked: fallback to fetch-blob method
+                        ;(async () => {
+                          try {
+                            const response = await fetch(url, { method: 'GET', credentials: 'include', headers: { 'Accept': 'application/pdf' } })
+                            if (!response.ok) throw new Error('Failed to open PDF')
+                            const blob = await response.blob()
+                            const blobUrl = URL.createObjectURL(blob)
+                            window.open(blobUrl, '_blank', 'noopener,noreferrer')
+                            setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
+                          } catch (err) {
+                            console.error('Error opening PDF:', err)
+                            alert('Failed to open PDF. Please try again.')
+                          }
+                        })()
                       }
                     }}
                   >Open PDF</button>

@@ -38,6 +38,7 @@ export async function POST(request: Request) {
     const body = await request.json()
     const rowIds: string[] = Array.isArray(body?.rowIds) ? body.rowIds.map((x: any) => String(x)) : []
     const partyName = body?.partyName ? String(body.partyName) : undefined
+    const partyIdInput = body?.partyId != null ? Number(body.partyId) : undefined
     const gstPercentOverride = body?.gst_percent != null ? Number(body.gst_percent) : undefined
     const shipmentType = body?.shipment_type ? String(body.shipment_type) : undefined
     const mode = body?.mode ? String(body.mode) : undefined
@@ -172,14 +173,24 @@ export async function POST(request: Request) {
     try {
       if (client) await client.query('BEGIN')
 
-      // Ensure party exists in parties table, or create stub
+      // Resolve party: prefer provided partyId; else resolve by normalized partyName (trim + collapse spaces, case-insensitive)
       const partyNameKey = party_display.trim()
       let partyId: number | null = null
-      {
-        const r = await runner.query('SELECT id FROM parties WHERE LOWER(party_name)=LOWER($1) LIMIT 1', [partyNameKey])
-        if (r.rows?.length) partyId = Number(r.rows[0].id)
-        else {
-          const ins = await runner.query('INSERT INTO parties (party_name) VALUES ($1) RETURNING id', [partyNameKey])
+      if (partyIdInput && isFinite(partyIdInput) && Number(partyIdInput) > 0) {
+        const chk = await runner.query('SELECT id, party_name FROM parties WHERE id = $1 LIMIT 1', [Number(partyIdInput)])
+        if (!chk.rows?.length) {
+          throw new Error('Invalid partyId: not found')
+        }
+        partyId = Number(chk.rows[0].id)
+      } else {
+        // Normalize spaces and case for lookup to avoid duplicates
+        const findSql = `SELECT id FROM parties WHERE LOWER(TRIM(REGEXP_REPLACE(party_name, '\\s+', ' ', 'g'))) = LOWER(TRIM(REGEXP_REPLACE($1, '\\s+', ' ', 'g'))) LIMIT 1`
+        const r = await runner.query(findSql, [partyNameKey])
+        if (r.rows?.length) {
+          partyId = Number(r.rows[0].id)
+        } else {
+          const cleaned = partyNameKey.replace(/\s+/g, ' ').trim()
+          const ins = await runner.query('INSERT INTO parties (party_name) VALUES ($1) RETURNING id', [cleaned])
           partyId = Number(ins.rows[0].id)
         }
       }

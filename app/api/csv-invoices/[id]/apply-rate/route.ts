@@ -31,16 +31,33 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
 
     // Map mode and service codes
     const modeCode = up(row.mode)
+    const modeCodeNorm = modeCode.replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '')
     const serviceCode = up(row.service_type)
+    const serviceCodeNorm = serviceCode.replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '')
     // Shipment type is inferred from mode (no manual selection in new model)
     const shipType = inferShipmentFromModeCode(modeCode)
 
-    const modeRes = await db.query(`SELECT id, code FROM modes WHERE is_active = true AND code = $1`, [modeCode])
-    if ((modeRes as any).rowCount === 0) return NextResponse.json({ error: 'Mode not recognized' }, { status: 400 })
-    const modeId = modeRes.rows[0].id as number
+    // Try by exact code first
+    let modeRes = await db.query(`SELECT id, code FROM modes WHERE is_active = true AND code = $1`, [modeCode])
+    if ((modeRes as any).rowCount === 0 && modeCodeNorm && modeCodeNorm !== modeCode) {
+      // Try normalized code (e.g., NON DOCUMENT -> NON_DOCUMENT)
+      modeRes = await db.query(`SELECT id, code FROM modes WHERE is_active = true AND code = $1`, [modeCodeNorm])
+    }
+    if ((modeRes as any).rowCount === 0) {
+      // Fall back to title match using raw CSV value
+      const rawModeTitle = String(row.mode || '').trim()
+      if (rawModeTitle) {
+        modeRes = await db.query(`SELECT id, code FROM modes WHERE is_active = true AND title ILIKE $1`, [rawModeTitle])
+      }
+    }
+    if ((modeRes as any).rowCount === 0) return NextResponse.json({ error: 'Mode not recognized', received: row.mode }, { status: 400 })
+    const modeId = (modeRes as any).rows[0].id as number
 
-    // Accept CSV value as code or as title
+    // Accept CSV value as code; try normalized code; then fall back to title
     let svcRes = await db.query(`SELECT id, code FROM service_types WHERE is_active = true AND code = $1`, [serviceCode])
+    if ((svcRes as any).rowCount === 0 && serviceCodeNorm && serviceCodeNorm !== serviceCode) {
+      svcRes = await db.query(`SELECT id, code FROM service_types WHERE is_active = true AND code = $1`, [serviceCodeNorm])
+    }
     if ((svcRes as any).rowCount === 0) {
       const rawTitle = String(row.service_type || '').trim()
       if (rawTitle) {
@@ -84,12 +101,12 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
     const partyId = pres.rows[0].id as number
 
     // Find party rate slab
-    const rres = await db.query(
+    let rres = await db.query(
       `SELECT prs.id, prs.rate, prs.fuel_pct, prs.packing, prs.handling, prs.gst_pct
        FROM party_rate_slabs prs
        WHERE prs.is_active = true
          AND prs.party_id = $1
-         AND prs.shipment_type = $2
+         AND UPPER(prs.shipment_type) = $2
          AND prs.mode_id = $3
          AND prs.service_type_id = $4
          AND prs.distance_slab_id = $5
@@ -97,6 +114,30 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
        LIMIT 1`,
       [partyId, shipType, modeId, serviceTypeId, distanceSlabId, weightSlabId]
     )
+
+    // Fallback: if not found for this partyId, try any party with same normalized name
+    let effectivePartyId = partyId
+    if ((rres as any).rowCount === 0) {
+      const rres2 = await db.query(
+        `SELECT prs.id, prs.rate, prs.fuel_pct, prs.packing, prs.handling, prs.gst_pct, prs.party_id
+         FROM party_rate_slabs prs
+         JOIN parties p ON p.id = prs.party_id
+         WHERE prs.is_active = true
+           AND LOWER(TRIM(p.party_name)) = LOWER(TRIM($1))
+           AND UPPER(prs.shipment_type) = $2
+           AND prs.mode_id = $3
+           AND prs.service_type_id = $4
+           AND prs.distance_slab_id = $5
+           AND prs.slab_id = $6
+         ORDER BY prs.updated_at DESC NULLS LAST, prs.id DESC
+         LIMIT 1`,
+        [partyName, shipType, modeId, serviceTypeId, distanceSlabId, weightSlabId]
+      )
+      if ((rres2 as any).rowCount > 0) {
+        rres = rres2
+        effectivePartyId = (rres2 as any).rows[0].party_id as number
+      }
+    }
 
     if ((rres as any).rowCount === 0) {
       // Include helpful diagnostics (frontend currently shows generic message for bulk runs)
@@ -135,7 +176,7 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
 
     const pricing_meta = {
       source: 'party_rate_slab',
-      party_id: partyId,
+      party_id: effectivePartyId,
       shipment_type: shipType,
       mode_id: modeId,
       service_type_id: serviceTypeId,
