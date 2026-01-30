@@ -63,21 +63,21 @@ async function ensureOfflineBookingsTable() {
 function parseCSV(csvText: string): Record<string, any>[] {
   const lines = csvText.trim().split('\n')
   if (lines.length < 2) return []
-  
+
   const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
   const records: Record<string, any>[] = []
-  
+
   for (let i = 1; i < lines.length; i++) {
     const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''))
     if (values.length !== headers.length) continue
-    
+
     const record: Record<string, any> = {}
     headers.forEach((header, index) => {
       record[header] = values[index] || null
     })
     records.push(record)
   }
-  
+
   return records
 }
 
@@ -131,7 +131,7 @@ function mapBookingRecord(record: Record<string, any>, type: 'booking' | 'offlin
 async function insertBookingRecords(records: any[], type: 'booking' | 'offline', userId: number) {
   if (type === 'booking') {
     await ensureAccountBookingsTable()
-    
+
     const insertPromises = records.map(record => {
       return db.query(`
         INSERT INTO account_bookings (
@@ -148,11 +148,11 @@ async function insertBookingRecords(records: any[], type: 'booking' | 'offline',
         record.net_amount, record.remarks, userId
       ])
     })
-    
+
     await Promise.all(insertPromises)
   } else {
     await ensureOfflineBookingsTable()
-    
+
     const insertPromises = records.map(record => {
       return db.query(`
         INSERT INTO offline_bookings (
@@ -169,7 +169,7 @@ async function insertBookingRecords(records: any[], type: 'booking' | 'offline',
         record.net_amount, record.remarks, record.offline_status, userId
       ])
     })
-    
+
     await Promise.all(insertPromises)
   }
 }
@@ -265,7 +265,7 @@ async function handler(context: { user: any }, req: NextRequest) {
         console.error('Error finding party:', err)
       }
       // Generate invoice number (simple: INV-<timestamp>-<party>)
-      const invoice_number = `INV-${Date.now()}-${party.replace(/\s+/g, '').toUpperCase().slice(0,6)}`
+      const invoice_number = `INV-${Date.now()}-${party.replace(/\s+/g, '').toUpperCase().slice(0, 6)}`
       // Use today as invoice_date
       const invoice_date = new Date().toISOString().split('T')[0]
       // Insert invoice into DB
@@ -300,4 +300,4 @@ async function handler(context: { user: any }, req: NextRequest) {
   }
 }
 
-export const POST = handler
+export const POST = withAuth(handler)
