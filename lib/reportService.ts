@@ -1,10 +1,10 @@
 import { InvoiceStorage } from './invoiceStorage'
 import { PartyStorage } from './storage'
-import { 
-  ReportFilters, 
-  SalesReportData, 
-  PartyStatementData, 
-  DaybookData, 
+import {
+  ReportFilters,
+  SalesReportData,
+  PartyStatementData,
+  DaybookData,
   ReportSummary,
   PartyTransaction,
   DaybookEntry
@@ -18,7 +18,7 @@ export class ReportService {
     summary: ReportSummary
   } {
     const invoices = this.getFilteredInvoices(filters)
-    
+
     const data: SalesReportData[] = invoices.map(invoice => ({
       invoiceNumber: invoice.invoiceNumber,
       invoiceDate: invoice.invoiceDate,
@@ -40,7 +40,7 @@ export class ReportService {
   static generatePartyStatement(filters: ReportFilters): PartyStatementData[] {
     const invoices = this.getFilteredInvoices(filters)
     const parties = PartyStorage.getAll()
-    
+
     // Group invoices by customer
     const partyInvoices = new Map<string, Invoice[]>()
     invoices.forEach(invoice => {
@@ -110,7 +110,7 @@ export class ReportService {
 
   static generateDaybookReport(filters: ReportFilters): DaybookData[] {
     const invoices = this.getFilteredInvoices(filters)
-    
+
     // Group invoices by date
     const dailyInvoices = new Map<string, Invoice[]>()
     invoices.forEach(invoice => {
@@ -125,15 +125,15 @@ export class ReportService {
 
     dailyInvoices.forEach((dayInvoices, date) => {
       const entries: DaybookEntry[] = dayInvoices
-        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+        .sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime())
         .map(invoice => ({
-          time: new Date(invoice.createdAt).toLocaleTimeString('en-IN', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
+          time: new Date(invoice.createdAt || 0).toLocaleTimeString('en-IN', {
+            hour: '2-digit',
+            minute: '2-digit'
           }),
           invoiceNumber: invoice.invoiceNumber,
           customerName: invoice.customer.partyName,
-          description: `${invoice.items.length} item(s) - ${invoice.items[0]?.destination || 'Various destinations'}`,
+          description: `${invoice.items.length} item(s)`,
           amount: invoice.totalAmount,
           receivedAmount: invoice.receivedAmount,
           balance: invoice.balance,
@@ -181,9 +181,9 @@ export class ReportService {
     const totalSales = invoices.reduce((sum, inv) => sum + inv.totalAmount, 0)
     const totalReceived = invoices.reduce((sum, inv) => sum + inv.receivedAmount, 0)
     const totalBalance = invoices.reduce((sum, inv) => sum + inv.balance, 0)
-    
+
     const paidInvoices = invoices.filter(inv => inv.paymentInfo.status === 'paid').length
-    const unpaidInvoices = invoices.filter(inv => inv.paymentInfo.status === 'unpaid').length
+    const unpaidInvoices = invoices.filter(inv => inv.paymentInfo.status === 'pending').length
     const partialInvoices = invoices.filter(inv => inv.paymentInfo.status === 'partial').length
 
     return {
@@ -241,7 +241,7 @@ export class ReportService {
                   if (dataUrl.startsWith('data:')) logoSrc = dataUrl
                 }
               }
-            } catch {}
+            } catch { }
           } else {
             // Possibly bare base64 string
             const looksB64 = /^[a-z0-9+/=\r\n]+$/i.test(raw) && raw.length > 100
@@ -249,7 +249,7 @@ export class ReportService {
           }
         }
       }
-    } catch {}
+    } catch { }
 
     // Use hidden iframe for reliable printing in user-gesture context
     const html = this.generatePrintHTML(data, reportType, filters, logoSrc)
@@ -263,7 +263,7 @@ export class ReportService {
     iframe.style.visibility = 'hidden'
 
     const cleanup = () => {
-      try { document.body.removeChild(iframe) } catch {}
+      try { document.body.removeChild(iframe) } catch { }
     }
 
     iframe.onload = () => {
@@ -271,15 +271,15 @@ export class ReportService {
       if (!win) { cleanup(); return }
       // Slight delay to allow layout before print
       setTimeout(() => {
-        try { win.focus() } catch {}
-        try { win.print() } catch {}
+        try { win.focus() } catch { }
+        try { win.print() } catch { }
         try { (win as any).onafterprint = cleanup } catch { setTimeout(cleanup, 500) }
       }, 50)
     }
 
     document.body.appendChild(iframe)
     if (typeof (iframe as any).srcdoc !== 'undefined') {
-      ;(iframe as any).srcdoc = html
+      ; (iframe as any).srcdoc = html
     } else {
       const doc = iframe.contentDocument || iframe.contentWindow?.document
       if (doc) {
@@ -328,10 +328,10 @@ export class ReportService {
       return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s
     }
     const headers = [
-      'Invoice Number', 'Date', 'Customer', 'Phone', 'Total Amount', 
+      'Invoice Number', 'Date', 'Customer', 'Phone', 'Total Amount',
       'Received Amount', 'Balance', 'Payment Type', 'Status', 'Payment Status'
     ]
-    
+
     const rows = data.map(row => [
       esc(row.invoiceNumber),
       esc(row.invoiceDate),
@@ -353,7 +353,7 @@ export class ReportService {
       const s = String(v ?? '')
       return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s
     }
-    const headers = ['Party Name','Phone','Total Sales','Total Received','Closing Balance']
+    const headers = ['Party Name', 'Phone', 'Total Sales', 'Total Received', 'Closing Balance']
     const rows = data.map(party => [
       esc(party.partyName),
       esc(party.partyPhone),
@@ -370,12 +370,12 @@ export class ReportService {
       return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s
     }
     const headers = [
-      'Date', 'Time', 'Invoice Number', 'Customer', 'Description', 
+      'Date', 'Time', 'Invoice Number', 'Customer', 'Description',
       'Amount', 'Received', 'Balance', 'Payment Type', 'Status'
     ]
-    
+
     const rows: string[][] = []
-    
+
     data.forEach(day => {
       day.entries.forEach(entry => {
         rows.push([
@@ -398,7 +398,7 @@ export class ReportService {
 
   private static generatePrintHTML(data: any, reportType: string, filters: ReportFilters, logoSrc?: string): string {
     const today = new Date().toLocaleDateString('en-IN')
-    const dateRange = filters.dateFrom && filters.dateTo 
+    const dateRange = filters.dateFrom && filters.dateTo
       ? `${new Date(filters.dateFrom).toLocaleDateString('en-IN')} to ${new Date(filters.dateTo).toLocaleDateString('en-IN')}`
       : 'All dates'
 
@@ -471,7 +471,7 @@ export class ReportService {
   }
 
   private static generateSalesHTML(data: { data: SalesReportData[], summary: ReportSummary }): string {
-    const formatCurrency = (amount: number) => 
+    const formatCurrency = (amount: number) =>
       new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount)
 
     let html = `
@@ -526,7 +526,7 @@ export class ReportService {
   }
 
   private static generatePartyStatementHTML(data: PartyStatementData[]): string {
-    const formatCurrency = (amount: number) => 
+    const formatCurrency = (amount: number) =>
       new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount)
 
     let html = '<div>'
@@ -577,7 +577,7 @@ export class ReportService {
   }
 
   private static generateDaybookHTML(data: DaybookData[]): string {
-    const formatCurrency = (amount: number) => 
+    const formatCurrency = (amount: number) =>
       new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount)
 
     let html = '<div>'
