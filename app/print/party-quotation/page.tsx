@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 interface Company {
@@ -48,10 +48,10 @@ interface PartyQuotation {
   updated_at: string
 }
 
-export default function PrintPartyQuotationPage() {
+function QuotationContent() {
   const searchParams = useSearchParams()
   const partyId = searchParams.get('partyId')
-  
+
   const [company, setCompany] = useState<Company | null>(null)
   const [party, setParty] = useState<Party | null>(null)
   const [packageTypes, setPackageTypes] = useState<PackageType[]>([])
@@ -63,7 +63,7 @@ export default function PrintPartyQuotationPage() {
 
   useEffect(() => {
     setCurrentDate(new Date().toLocaleDateString('en-GB'))
-    
+
     if (partyId) {
       fetchPartyAndQuotation()
     }
@@ -76,7 +76,7 @@ export default function PrintPartyQuotationPage() {
       const headers = {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       }
-      
+
       // Fetch active company details
       const companyResponse = await fetch('/api/companies/active', { headers })
       if (companyResponse.ok) {
@@ -139,7 +139,7 @@ export default function PrintPartyQuotationPage() {
           })
           console.log('Final parsed quotations:', parsedQuotations)
           setQuotations(parsedQuotations || [])
-          
+
           // Derive package types from quotation data
           const derivedPackageTypes: PackageType[] = parsedQuotations.map((q: any) => {
             // Get all regions' rates to find the most complete weight structure
@@ -147,27 +147,27 @@ export default function PrintPartyQuotationPage() {
             Object.values(q.rates || {}).forEach((regionRates: any) => {
               Object.keys(regionRates || {}).forEach(key => allWeightKeys.add(key))
             })
-            
+
             const weightKeys = Array.from(allWeightKeys)
             console.log(`Deriving package type for ${q.package_type}:`, weightKeys)
-            
+
             // Convert weight keys to ranges with more flexible parsing
             const ranges = weightKeys
               .filter(key => !key.toLowerCase().includes('add'))
               .map(key => {
                 // Try multiple patterns to extract weight and unit
-                let match = key.match(/(\d+)\s*(gm|kg|g)/i) || 
-                           key.match(/(\d+)(gm|kg|g)/i) ||
-                           key.match(/(\d+)\s*(GM|KG|G)/i) ||
-                           key.match(/(\d+)(GM|KG|G)/i)
-                
+                let match = key.match(/(\d+)\s*(gm|kg|g)/i) ||
+                  key.match(/(\d+)(gm|kg|g)/i) ||
+                  key.match(/(\d+)\s*(GM|KG|G)/i) ||
+                  key.match(/(\d+)(GM|KG|G)/i)
+
                 if (match) {
                   return {
                     weight: match[1],
                     unit: match[2].toLowerCase()
                   }
                 }
-                
+
                 // If no unit found, try to extract just the number
                 const numberMatch = key.match(/(\d+)/)
                 if (numberMatch) {
@@ -176,14 +176,14 @@ export default function PrintPartyQuotationPage() {
                     unit: 'g' // default unit
                   }
                 }
-                
+
                 return null
               })
               .filter(Boolean) as WeightRange[]
-            
+
             // Find extra weight key with more flexible matching
-            const extraWeightKey = weightKeys.find(key => 
-              key.toLowerCase().includes('add') || 
+            const extraWeightKey = weightKeys.find(key =>
+              key.toLowerCase().includes('add') ||
               key.toLowerCase().includes('extra') ||
               key.includes('Add_')
             )
@@ -194,12 +194,12 @@ export default function PrintPartyQuotationPage() {
                 extraWeight = match[1]
               }
             }
-            
+
             // Determine unit based on weight keys with better logic
             const hasKg = weightKeys.some(key => key.toLowerCase().includes('kg'))
             const hasGm = weightKeys.some(key => key.toLowerCase().includes('gm') || key.toLowerCase().includes('g'))
             const unit = hasKg ? 'KG' : (hasGm ? 'GM' : 'GM')
-            
+
             return {
               name: q.package_type,
               unit: unit,
@@ -207,7 +207,7 @@ export default function PrintPartyQuotationPage() {
               extraWeight: extraWeight
             }
           })
-          
+
           console.log('Derived package types:', derivedPackageTypes)
           setPackageTypes(derivedPackageTypes)
         }
@@ -226,36 +226,36 @@ export default function PrintPartyQuotationPage() {
     const columns = packageType.ranges.map(range => {
       let displayWeight = range.weight
       let displayUnit = packageType.unit.toLowerCase()
-      
+
       // Convert weight to package type's unit if needed
       if (packageType.unit === 'KG' && range.unit === 'g') {
         displayWeight = (parseInt(range.weight) / 1000).toString()
       } else if (packageType.unit === 'GM' && range.unit === 'kg') {
         displayWeight = (parseInt(range.weight) * 1000).toString()
       }
-      
+
       return `${displayWeight} ${displayUnit}`
     })
-    
+
     if (packageType.extraWeight) {
       columns.push(`Add_${packageType.extraWeight} ${packageType.unit.toLowerCase()}`)
     }
-    
+
     return columns
   }
 
   // Helper function to find the best matching key for a weight column
   const findBestMatchingKey = (rates: any, region: string, weightColumn: string): string => {
     if (!rates[region]) return ''
-    
+
     const regionRates = rates[region]
     const availableKeys = Object.keys(regionRates)
-    
+
     // Direct match first
     if (regionRates[weightColumn]) {
       return regionRates[weightColumn]
     }
-    
+
     // Try variations of the weight column
     const variations = [
       weightColumn,
@@ -268,14 +268,14 @@ export default function PrintPartyQuotationPage() {
       weightColumn.toUpperCase(),
       weightColumn.toLowerCase(),
     ]
-    
+
     // Try each variation
     for (const variation of variations) {
       if (regionRates[variation]) {
         return regionRates[variation]
       }
     }
-    
+
     // Try to find by extracting just the number
     const numberMatch = weightColumn.match(/(\d+)/)
     if (numberMatch) {
@@ -286,7 +286,7 @@ export default function PrintPartyQuotationPage() {
         }
       }
     }
-    
+
     return ''
   }
 
@@ -294,7 +294,7 @@ export default function PrintPartyQuotationPage() {
   const getQuotationRates = (packageTypeName: string): QuotationRates => {
     const quotation = quotations.find(q => q.package_type === packageTypeName)
     if (!quotation) return {}
-    
+
     // Parse rates if they're stored as JSON string
     let rates = quotation.rates
     if (typeof rates === 'string') {
@@ -305,26 +305,26 @@ export default function PrintPartyQuotationPage() {
         return {}
       }
     }
-    
+
     return rates || {}
   }
 
   // Function to delete a package type quotation
   const deletePackageType = async (packageType: string) => {
     if (!partyId) return
-    
+
     setDeleting(true)
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
       const headers = {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       }
-      
+
       const response = await fetch(`/api/parties/${partyId}/quotations?package_type=${packageType}`, {
         method: 'DELETE',
         headers
       })
-      
+
       if (response.ok) {
         const result = await response.json()
         console.log(`Deleted ${packageType}:`, result)
@@ -368,16 +368,16 @@ export default function PrintPartyQuotationPage() {
         {/* Company Header */}
         <div className="text-center mb-6">
           {company?.logo && (
-            <img 
-              src={company.logo} 
-              alt="Company Logo" 
+            <img
+              src={company.logo}
+              alt="Company Logo"
               className="mx-auto mb-2 max-h-16"
             />
           )}
           <h1 className="text-2xl font-bold mb-2">{company?.business_name || 'Loading Company...'}</h1>
           <div className="border-t-2 border-b-2 border-black py-2 mb-4">
             <p className="text-sm">
-              {company?.business_address || 'Shalimar complex Sadhu shree Garden Road saman Rewa, REWA - 486011'} 
+              {company?.business_address || 'Shalimar complex Sadhu shree Garden Road saman Rewa, REWA - 486011'}
               {company?.phone_number && ` PH. ${company.phone_number}`}
             </p>
           </div>
@@ -409,68 +409,68 @@ export default function PrintPartyQuotationPage() {
           </div>
         ) : (
           packageTypes.map((packageType) => {
-          const weightColumns = generateWeightColumns(packageType)
-          const rates = getQuotationRates(packageType.name)
-          
-          // Temporary debug for values
-          console.log('=== DEBUG INFO ===')
-          console.log('Package Type:', packageType.name)
-          console.log('Weight Columns:', weightColumns)
-          console.log('Rates Object:', rates)
-          console.log('Regions:', regions)
-          console.log('Sample Cell Check:', rates[regions[0]]?.[weightColumns[0]])
-          
-          return (
-            <div key={packageType.name} className="mb-8">
-              <h3 className="font-bold text-lg mb-4">{packageType.name}</h3>
-              {/* Debug info - remove after fixing */}
-              <div className="text-xs text-gray-500 mb-2 print:hidden">
-                Debug: {Object.keys(rates).length} regions, {weightColumns.length} weights
-              </div>
-              <table className="w-full border-collapse border border-black">
-                <thead>
-                  <tr>
-                    <th className="border border-black p-2 bg-gray-100"></th>
-                    {weightColumns.map((weight) => (
-                      <th key={weight} className="border border-black p-2 bg-gray-100">
-                        {weight.includes('Add_') ? (
-                          <>
-                            {weight.split('_')[0]}_<br/>{weight.split('_')[1]}
-                          </>
-                        ) : (
-                          weight
-                        )}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {regions.map((region) => (
-                    <tr key={region}>
-                      <td className="border border-black p-2 font-semibold bg-gray-50 text-right">
-                        {region}
-                      </td>
-                      {weightColumns.map((weight) => {
-                        const cellValue = findBestMatchingKey(rates, region, weight)
-                        // Debug each cell
-                        if (!cellValue) {
-                          console.log(`Empty cell: [${region}][${weight}] - Available keys:`, Object.keys(rates[region] || {}))
-                        } else {
-                          console.log(`Found value: [${region}][${weight}] = ${cellValue}`)
-                        }
-                        return (
-                          <td key={weight} className="border border-black p-2 text-center">
-                            {cellValue || <span className="text-red-500 text-xs print:hidden">Empty</span>}
-                          </td>
-                        )
-                      })}
+            const weightColumns = generateWeightColumns(packageType)
+            const rates = getQuotationRates(packageType.name)
+
+            // Temporary debug for values
+            console.log('=== DEBUG INFO ===')
+            console.log('Package Type:', packageType.name)
+            console.log('Weight Columns:', weightColumns)
+            console.log('Rates Object:', rates)
+            console.log('Regions:', regions)
+            console.log('Sample Cell Check:', rates[regions[0]]?.[weightColumns[0]])
+
+            return (
+              <div key={packageType.name} className="mb-8">
+                <h3 className="font-bold text-lg mb-4">{packageType.name}</h3>
+                {/* Debug info - remove after fixing */}
+                <div className="text-xs text-gray-500 mb-2 print:hidden">
+                  Debug: {Object.keys(rates).length} regions, {weightColumns.length} weights
+                </div>
+                <table className="w-full border-collapse border border-black">
+                  <thead>
+                    <tr>
+                      <th className="border border-black p-2 bg-gray-100"></th>
+                      {weightColumns.map((weight) => (
+                        <th key={weight} className="border border-black p-2 bg-gray-100">
+                          {weight.includes('Add_') ? (
+                            <>
+                              {weight.split('_')[0]}_<br />{weight.split('_')[1]}
+                            </>
+                          ) : (
+                            weight
+                          )}
+                        </th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )
-        })
+                  </thead>
+                  <tbody>
+                    {regions.map((region) => (
+                      <tr key={region}>
+                        <td className="border border-black p-2 font-semibold bg-gray-50 text-right">
+                          {region}
+                        </td>
+                        {weightColumns.map((weight) => {
+                          const cellValue = findBestMatchingKey(rates, region, weight)
+                          // Debug each cell
+                          if (!cellValue) {
+                            console.log(`Empty cell: [${region}][${weight}] - Available keys:`, Object.keys(rates[region] || {}))
+                          } else {
+                            console.log(`Found value: [${region}][${weight}] = ${cellValue}`)
+                          }
+                          return (
+                            <td key={weight} className="border border-black p-2 text-center">
+                              {cellValue || <span className="text-red-500 text-xs print:hidden">Empty</span>}
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          })
         )}
 
         {/* Signature Section */}
@@ -480,9 +480,9 @@ export default function PrintPartyQuotationPage() {
           </div>
           {company?.signature && (
             <div className="mb-4">
-              <img 
-                src={company.signature} 
-                alt="Signature" 
+              <img
+                src={company.signature}
+                alt="Signature"
                 className="ml-auto max-h-12"
               />
             </div>
@@ -506,5 +506,13 @@ export default function PrintPartyQuotationPage() {
         }
       `}</style>
     </div>
+  )
+}
+
+export default function PrintPartyQuotationPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
+      <QuotationContent />
+    </Suspense>
   )
 }

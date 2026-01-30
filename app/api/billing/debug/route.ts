@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
+export const dynamic = 'force-dynamic'
+
 // GET /api/billing/debug?month=2025-10
 // Debug endpoint to see booking data and party matching
 export async function GET(request: NextRequest) {

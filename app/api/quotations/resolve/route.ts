@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
+export const dynamic = 'force-dynamic'
+
 // Resolve a quotation rate by region + package type + weight (grams)
 // GET /api/quotations/resolve?regionId=&packageType=&weightGrams=
 export async function GET(req: Request) {
