@@ -52,7 +52,7 @@ export default function DistanceCategoryConfigPanel({ onClose }: { onClose: () =
       title="Configure Distance Slab Categories"
       size="lg"
       footer={(
-        <button className="mt-2 px-4 py-2 rounded bg-gray-500 text-white" onClick={onClose}>Close</button>
+        <button className="mt-2 px-4 py-2 rounded bg-slate-500 text-white" onClick={onClose}>Close</button>
       )}
     >
       <div className="mb-6">

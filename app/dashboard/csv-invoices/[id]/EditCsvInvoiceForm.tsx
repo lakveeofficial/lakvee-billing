@@ -105,7 +105,7 @@ export default function EditCsvInvoiceForm({ initial }: { initial: CsvInvoiceEdi
 
   const group = (title: string, children: React.ReactNode) => (
     <fieldset className="border rounded p-4 space-y-3">
-      <legend className="px-1 text-sm font-medium text-gray-700">{title}</legend>
+      <legend className="px-1 text-sm font-medium text-slate-700">{title}</legend>
       {children}
     </fieldset>
   )
@@ -115,15 +115,15 @@ export default function EditCsvInvoiceForm({ initial }: { initial: CsvInvoiceEdi
       {group('Dates / References', (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="text-sm text-gray-600">Booking Date</label>
+            <label className="text-sm text-slate-600">Booking Date</label>
             <input type="date" value={toStr(form.booking_date)} onChange={onChange('booking_date')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div>
-            <label className="text-sm text-gray-600">Booking Reference</label>
+            <label className="text-sm text-slate-600">Booking Reference</label>
             <input type="text" value={toStr(form.booking_reference)} onChange={onChange('booking_reference')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div>
-            <label className="text-sm text-gray-600">Consignment No</label>
+            <label className="text-sm text-slate-600">Consignment No</label>
             <input type="text" value={toStr(form.consignment_no)} onChange={onChange('consignment_no')} className="w-full px-3 py-2 border rounded" />
           </div>
         </div>
@@ -132,7 +132,7 @@ export default function EditCsvInvoiceForm({ initial }: { initial: CsvInvoiceEdi
       {group('Mode / Service', (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="text-sm text-gray-600">Mode</label>
+            <label className="text-sm text-slate-600">Mode</label>
             <input
               type="text"
               value={toStr(form.mode)}
@@ -145,23 +145,23 @@ export default function EditCsvInvoiceForm({ initial }: { initial: CsvInvoiceEdi
             />
           </div>
           <div>
-            <label className="text-sm text-gray-600">Service Type</label>
+            <label className="text-sm text-slate-600">Service Type</label>
             <input type="text" value={toStr(form.service_type)} onChange={onChange('service_type')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div>
-            <label className="text-sm text-gray-600">Booking Mode</label>
+            <label className="text-sm text-slate-600">Booking Mode</label>
             <input type="text" value={toStr(form.booking_mode)} onChange={onChange('booking_mode')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div>
-            <label className="text-sm text-gray-600">Shipment Type</label>
-            <input type="text" value={toStr(inferShipmentFromModeCode(form.mode))} readOnly className="w-full px-3 py-2 border rounded bg-gray-50" />
+            <label className="text-sm text-slate-600">Shipment Type</label>
+            <input type="text" value={toStr(inferShipmentFromModeCode(form.mode))} readOnly className="w-full px-3 py-2 border rounded bg-slate-50" />
           </div>
           <div>
-            <label className="text-sm text-gray-600">Service Code</label>
+            <label className="text-sm text-slate-600">Service Code</label>
             <input type="text" value={toStr(form.service_code)} onChange={onChange('service_code')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div>
-            <label className="text-sm text-gray-600">Region</label>
+            <label className="text-sm text-slate-600">Region</label>
             <input type="text" value={toStr(form.region)} onChange={onChange('region')} className="w-full px-3 py-2 border rounded" />
           </div>
         </div>
@@ -170,27 +170,27 @@ export default function EditCsvInvoiceForm({ initial }: { initial: CsvInvoiceEdi
       {group('Sender / Recipient', (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="text-sm text-gray-600">Sender Name</label>
+            <label className="text-sm text-slate-600">Sender Name</label>
             <input type="text" value={toStr(form.sender_name)} onChange={onChange('sender_name')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div>
-            <label className="text-sm text-gray-600">Sender Phone</label>
+            <label className="text-sm text-slate-600">Sender Phone</label>
             <input type="text" value={toStr(form.sender_phone)} onChange={onChange('sender_phone')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div className="md:col-span-1">
-            <label className="text-sm text-gray-600">Sender Address</label>
+            <label className="text-sm text-slate-600">Sender Address</label>
             <input type="text" value={toStr(form.sender_address)} onChange={onChange('sender_address')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div>
-            <label className="text-sm text-gray-600">Recipient Name</label>
+            <label className="text-sm text-slate-600">Recipient Name</label>
             <input type="text" value={toStr(form.recipient_name)} onChange={onChange('recipient_name')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div>
-            <label className="text-sm text-gray-600">Recipient Phone</label>
+            <label className="text-sm text-slate-600">Recipient Phone</label>
             <input type="text" value={toStr(form.recipient_phone)} onChange={onChange('recipient_phone')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div className="md:col-span-1">
-            <label className="text-sm text-gray-600">Recipient Address</label>
+            <label className="text-sm text-slate-600">Recipient Address</label>
             <input type="text" value={toStr(form.recipient_address)} onChange={onChange('recipient_address')} className="w-full px-3 py-2 border rounded" />
           </div>
         </div>
@@ -199,43 +199,43 @@ export default function EditCsvInvoiceForm({ initial }: { initial: CsvInvoiceEdi
       {group('Amounts / Weights', (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="text-sm text-gray-600">Weight (kg)</label>
+            <label className="text-sm text-slate-600">Weight (kg)</label>
             <input type="number" step="0.01" value={toStr(form.weight)} onChange={onChange('weight')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div>
-            <label className="text-sm text-gray-600">Chargeable Weight</label>
+            <label className="text-sm text-slate-600">Chargeable Weight</label>
             <input type="number" step="0.01" value={toStr(form.chargeable_weight)} onChange={onChange('chargeable_weight')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div>
-            <label className="text-sm text-gray-600">Prepaid Amount</label>
+            <label className="text-sm text-slate-600">Prepaid Amount</label>
             <input type="number" step="0.01" value={toStr(form.prepaid_amount)} onChange={onChange('prepaid_amount')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div>
-            <label className="text-sm text-gray-600">Final Collected</label>
+            <label className="text-sm text-slate-600">Final Collected</label>
             <input type="number" step="0.01" value={toStr(form.final_collected)} onChange={onChange('final_collected')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div>
-            <label className="text-sm text-gray-600">Retail Price</label>
+            <label className="text-sm text-slate-600">Retail Price</label>
             <input type="number" step="0.01" value={toStr(form.retail_price)} onChange={onChange('retail_price')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div>
-            <label className="text-sm text-gray-600">Risk Surcharge Amount</label>
+            <label className="text-sm text-slate-600">Risk Surcharge Amount</label>
             <input type="number" step="0.01" value={toStr(form.risk_surcharge_amount)} onChange={onChange('risk_surcharge_amount')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div>
-            <label className="text-sm text-gray-600">Declared Value</label>
+            <label className="text-sm text-slate-600">Declared Value</label>
             <input type="number" step="0.01" value={toStr(form.declared_value)} onChange={onChange('declared_value')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div>
-            <label className="text-sm text-gray-600">Employee Disc %</label>
+            <label className="text-sm text-slate-600">Employee Disc %</label>
             <input type="number" step="0.01" value={toStr(form.employee_discount_percent)} onChange={onChange('employee_discount_percent')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div>
-            <label className="text-sm text-gray-600">Employee Disc Amt</label>
+            <label className="text-sm text-slate-600">Employee Disc Amt</label>
             <input type="number" step="0.01" value={toStr(form.employee_discount_amount)} onChange={onChange('employee_discount_amount')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div>
-            <label className="text-sm text-gray-600">Promo Discount</label>
+            <label className="text-sm text-slate-600">Promo Discount</label>
             <input type="number" step="0.01" value={toStr(form.promocode_discount)} onChange={onChange('promocode_discount')} className="w-full px-3 py-2 border rounded" />
           </div>
         </div>
@@ -244,47 +244,47 @@ export default function EditCsvInvoiceForm({ initial }: { initial: CsvInvoiceEdi
       {group('Other', (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="text-sm text-gray-600">Risk Surcharge Type</label>
+            <label className="text-sm text-slate-600">Risk Surcharge Type</label>
             <input type="text" value={toStr(form.risk_surcharge_type)} onChange={onChange('risk_surcharge_type')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div>
-            <label className="text-sm text-gray-600">Contents</label>
+            <label className="text-sm text-slate-600">Contents</label>
             <input type="text" value={toStr(form.contents)} onChange={onChange('contents')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div>
-            <label className="text-sm text-gray-600">Eway Bill</label>
+            <label className="text-sm text-slate-600">Eway Bill</label>
             <input type="text" value={toStr(form.eway_bill)} onChange={onChange('eway_bill')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div>
-            <label className="text-sm text-gray-600">GST Invoice</label>
+            <label className="text-sm text-slate-600">GST Invoice</label>
             <input type="text" value={toStr(form.gst_invoice)} onChange={onChange('gst_invoice')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div>
-            <label className="text-sm text-gray-600">Customer</label>
+            <label className="text-sm text-slate-600">Customer</label>
             <input type="text" value={toStr(form.customer)} onChange={onChange('customer')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div>
-            <label className="text-sm text-gray-600">Payment Mode</label>
+            <label className="text-sm text-slate-600">Payment Mode</label>
             <input type="text" value={toStr(form.payment_mode)} onChange={onChange('payment_mode')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div>
-            <label className="text-sm text-gray-600">Payment UTR</label>
+            <label className="text-sm text-slate-600">Payment UTR</label>
             <input type="text" value={toStr(form.payment_utr)} onChange={onChange('payment_utr')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div>
-            <label className="text-sm text-gray-600">Employee Code</label>
+            <label className="text-sm text-slate-600">Employee Code</label>
             <input type="text" value={toStr(form.employee_code)} onChange={onChange('employee_code')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div>
-            <label className="text-sm text-gray-600">Promocode</label>
+            <label className="text-sm text-slate-600">Promocode</label>
             <input type="text" value={toStr(form.promocode)} onChange={onChange('promocode')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div>
-            <label className="text-sm text-gray-600">Packing Material</label>
+            <label className="text-sm text-slate-600">Packing Material</label>
             <input type="text" value={toStr(form.packing_material)} onChange={onChange('packing_material')} className="w-full px-3 py-2 border rounded" />
           </div>
           <div>
-            <label className="text-sm text-gray-600">No. of Stretch Films</label>
+            <label className="text-sm text-slate-600">No. of Stretch Films</label>
             <input type="number" step="1" value={toStr(form.no_of_stretch_films)} onChange={onChange('no_of_stretch_films')} className="w-full px-3 py-2 border rounded" />
           </div>
         </div>
@@ -294,7 +294,7 @@ export default function EditCsvInvoiceForm({ initial }: { initial: CsvInvoiceEdi
         <button type="submit" disabled={saving} className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50">
           {saving ? 'Saving...' : 'Save Changes'}
         </button>
-        <button type="button" onClick={() => { const url = new URL(window.location.href); url.searchParams.delete('edit'); history.replaceState(null, '', url.toString()); router.refresh() }} className="px-4 py-2 border rounded hover:bg-gray-50">
+        <button type="button" onClick={() => { const url = new URL(window.location.href); url.searchParams.delete('edit'); history.replaceState(null, '', url.toString()); router.refresh() }} className="px-4 py-2 border rounded hover:bg-slate-50">
           Cancel
         </button>
       </div>

@@ -155,11 +155,11 @@ export default function CSVUploadPage() {
                   ? 'bg-green-500 text-white' 
                   : isActive 
                     ? 'bg-blue-500 text-white' 
-                    : 'bg-gray-200 text-gray-600'
+                    : 'bg-gray-200 text-slate-600'
               }`}>
                 {isCompleted ? <CheckCircle className="w-4 h-4" /> : stepNumber}
               </div>
-              <span className={`ml-2 text-sm ${isActive ? 'text-blue-600 font-medium' : 'text-gray-600'}`}>
+              <span className={`ml-2 text-sm ${isActive ? 'text-blue-600 font-medium' : 'text-slate-600'}`}>
                 {step}
               </span>
               {index < 3 && <div className="w-8 h-px bg-gray-300 mx-4" />}
@@ -174,38 +174,38 @@ export default function CSVUploadPage() {
           <button
             type="button"
             onClick={() => handleTypeSelect('parties')}
-            className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 transition-colors"
+            className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-300 rounded-xl hover:border-blue-500 transition-colors"
           >
             <Users className="h-12 w-12 text-blue-500 mb-2" />
             <h3 className="text-lg font-medium">Import Parties</h3>
-            <p className="text-sm text-gray-500 text-center">Upload a CSV file with customer or vendor details</p>
+            <p className="text-sm text-slate-500 text-center">Upload a CSV file with customer or vendor details</p>
           </button>
 
           <button
             type="button"
             onClick={() => handleTypeSelect('sales')}
-            className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-500 transition-colors"
+            className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-300 rounded-xl hover:border-green-500 transition-colors"
           >
             <Receipt className="h-12 w-12 text-green-500 mb-2" />
             <h3 className="text-lg font-medium">Import Sales</h3>
-            <p className="text-sm text-gray-500 text-center">Upload a CSV file with sales transaction data</p>
+            <p className="text-sm text-slate-500 text-center">Upload a CSV file with sales transaction data</p>
           </button>
 
           <button
             type="button"
             onClick={() => handleTypeSelect('invoices')}
-            className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-500 transition-colors"
+            className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-300 rounded-xl hover:border-purple-500 transition-colors"
           >
             <FileText className="h-12 w-12 text-purple-500 mb-2" />
             <h3 className="text-lg font-medium">Import Invoices</h3>
-            <p className="text-sm text-gray-500 text-center">Upload a CSV file with invoice data</p>
+            <p className="text-sm text-slate-500 text-center">Upload a CSV file with invoice data</p>
           </button>
         </div>
       )}
 
       {/* Step 2: File Upload */}
       {currentStep === 'upload' && selectedType && (
-        <div className="bg-white p-6 rounded-lg border">
+        <div className="bg-white p-6 rounded-xl border">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold">Upload {selectedType === 'parties' ? 'Parties' : selectedType === 'sales' ? 'Sales' : 'Invoices'} CSV</h2>
             <button
@@ -217,11 +217,11 @@ export default function CSVUploadPage() {
             </button>
           </div>
 
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-            <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center">
+            <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
             <div className="space-y-2">
-              <p className="text-lg font-medium text-gray-900">Choose a CSV file to upload</p>
-              <p className="text-gray-600">or drag and drop it here</p>
+              <p className="text-lg font-medium text-slate-900">Choose a CSV file to upload</p>
+              <p className="text-slate-600">or drag and drop it here</p>
             </div>
             <input
               ref={fileInputRef}
@@ -233,19 +233,19 @@ export default function CSVUploadPage() {
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isProcessing}
-              className="mt-4 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
+              className="mt-4 px-6 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 disabled:opacity-50"
             >
               {isProcessing ? 'Processing...' : 'Select File'}
             </button>
           </div>
 
           {file && (
-            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+            <div className="mt-4 p-4 bg-slate-50 rounded-xl">
               <div className="flex items-center gap-3">
-                <FileText className="w-5 h-5 text-gray-500" />
+                <FileText className="w-5 h-5 text-slate-500" />
                 <div>
-                  <p className="font-medium text-gray-900">{file.name}</p>
-                  <p className="text-sm text-gray-600">{(file.size / 1024).toFixed(1)} KB</p>
+                  <p className="font-medium text-slate-900">{file.name}</p>
+                  <p className="text-sm text-slate-600">{(file.size / 1024).toFixed(1)} KB</p>
                 </div>
               </div>
             </div>
@@ -258,7 +258,7 @@ export default function CSVUploadPage() {
         <div className="space-y-6">
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-blue-50 p-4 rounded-lg">
+            <div className="bg-blue-50 p-4 rounded-xl">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-blue-600">Total Rows</p>
@@ -267,7 +267,7 @@ export default function CSVUploadPage() {
                 <FileText className="w-8 h-8 text-blue-500" />
               </div>
             </div>
-            <div className="bg-green-50 p-4 rounded-lg">
+            <div className="bg-green-50 p-4 rounded-xl">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-green-600">Valid Rows</p>
@@ -276,7 +276,7 @@ export default function CSVUploadPage() {
                 <CheckCircle className="w-8 h-8 text-green-500" />
               </div>
             </div>
-            <div className="bg-red-50 p-4 rounded-lg">
+            <div className="bg-red-50 p-4 rounded-xl">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-red-600">Invalid Rows</p>
@@ -285,7 +285,7 @@ export default function CSVUploadPage() {
                 <AlertCircle className="w-8 h-8 text-red-500" />
               </div>
             </div>
-            <div className="bg-yellow-50 p-4 rounded-lg">
+            <div className="bg-yellow-50 p-4 rounded-xl">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-yellow-600">Errors</p>
@@ -298,17 +298,17 @@ export default function CSVUploadPage() {
 
           {/* Sample Data Preview */}
           {preview.sampleData.length > 0 && (
-            <div className="bg-white p-6 rounded-lg border">
+            <div className="bg-white p-6 rounded-xl border">
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Eye className="w-5 h-5" />
                 Sample Valid Data (First 5 rows)
               </h3>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-slate-50">
                     <tr>
                       {Object.keys(preview.sampleData[0]).map((header) => (
-                        <th key={header} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th key={header} className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                           {header}
                         </th>
                       ))}
@@ -318,7 +318,7 @@ export default function CSVUploadPage() {
                     {preview.sampleData.map((row, index) => (
                       <tr key={index}>
                         {Object.values(row).map((value, cellIndex) => (
-                          <td key={cellIndex} className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                          <td key={cellIndex} className="px-4 py-2 whitespace-nowrap text-sm text-slate-900">
                             {String(value)}
                           </td>
                         ))}
@@ -332,14 +332,14 @@ export default function CSVUploadPage() {
 
           {/* Errors */}
           {preview.errors.length > 0 && (
-            <div className="bg-white p-6 rounded-lg border">
+            <div className="bg-white p-6 rounded-xl border">
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-red-600">
                 <AlertCircle className="w-5 h-5" />
                 Validation Errors
               </h3>
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {preview.errors.slice(0, 20).map((error, index) => (
-                  <div key={index} className="flex items-start gap-3 p-3 bg-red-50 rounded-lg">
+                  <div key={index} className="flex items-start gap-3 p-3 bg-red-50 rounded-xl">
                     <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
                     <div className="text-sm">
                       <span className="font-medium text-red-900">Row {error.row}</span>
@@ -349,7 +349,7 @@ export default function CSVUploadPage() {
                   </div>
                 ))}
                 {preview.errors.length > 20 && (
-                  <p className="text-sm text-gray-600 text-center">
+                  <p className="text-sm text-slate-600 text-center">
                     ... and {preview.errors.length - 20} more errors
                   </p>
                 )}
@@ -361,14 +361,14 @@ export default function CSVUploadPage() {
           <div className="flex justify-between">
             <button
               onClick={() => setCurrentStep('upload')}
-              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              className="px-6 py-2 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50"
             >
               Back to Upload
             </button>
             <button
               onClick={handleImport}
               disabled={preview.validRows === 0 || isProcessing}
-              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
+              className="px-6 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 disabled:opacity-50"
             >
               {isProcessing ? 'Importing...' : `Import ${preview.validRows} Valid Records`}
             </button>
@@ -378,7 +378,7 @@ export default function CSVUploadPage() {
 
       {/* Step 4: Import Results */}
       {currentStep === 'result' && importResult && (
-        <div className="bg-white p-6 rounded-lg border">
+        <div className="bg-white p-6 rounded-xl border">
           <div className="text-center mb-6">
             {importResult.success ? (
               <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
@@ -388,19 +388,19 @@ export default function CSVUploadPage() {
             <h2 className={`text-2xl font-bold mb-2 ${importResult.success ? 'text-green-900' : 'text-red-900'}`}>
               {importResult.success ? 'Import Successful!' : 'Import Failed'}
             </h2>
-            <p className="text-gray-600">{importResult.message}</p>
+            <p className="text-slate-600">{importResult.message}</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-green-50 p-4 rounded-lg text-center">
+            <div className="bg-green-50 p-4 rounded-xl text-center">
               <p className="text-sm text-green-600">Imported</p>
               <p className="text-2xl font-bold text-green-900">{importResult.imported}</p>
             </div>
-            <div className="bg-yellow-50 p-4 rounded-lg text-center">
+            <div className="bg-yellow-50 p-4 rounded-xl text-center">
               <p className="text-sm text-yellow-600">Skipped</p>
               <p className="text-2xl font-bold text-yellow-900">{importResult.skipped}</p>
             </div>
-            <div className="bg-red-50 p-4 rounded-lg text-center">
+            <div className="bg-red-50 p-4 rounded-xl text-center">
               <p className="text-sm text-red-600">Errors</p>
               <p className="text-2xl font-bold text-red-900">{importResult.errors.length}</p>
             </div>
@@ -411,7 +411,7 @@ export default function CSVUploadPage() {
               <h3 className="text-lg font-semibold mb-4 text-red-600">Import Errors</h3>
               <div className="space-y-2 max-h-40 overflow-y-auto">
                 {importResult.errors.map((error, index) => (
-                  <div key={index} className="flex items-start gap-3 p-3 bg-red-50 rounded-lg">
+                  <div key={index} className="flex items-start gap-3 p-3 bg-red-50 rounded-xl">
                     <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
                     <div className="text-sm">
                       <span className="font-medium text-red-900">Row {error.row}</span>
@@ -426,17 +426,17 @@ export default function CSVUploadPage() {
           <div className="flex justify-center gap-4">
             <button
               onClick={resetUpload}
-              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              className="px-6 py-2 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50"
             >
               Upload Another File
             </button>
             <button
               onClick={() => {
                 if (selectedType === 'parties') window.location.href = '/dashboard/parties'
-                else if (selectedType === 'sales') window.location.href = '/dashboard/invoices'
+                else if (selectedType === 'sales') window.location.href = '/dashboard/accounts/bills'
                 else window.location.href = '/dashboard/csv-invoices'
               }}
-              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+              className="px-6 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600"
             >
               View {selectedType === 'parties' ? 'Parties' : selectedType === 'sales' ? 'Invoices' : 'CSV Invoices'}
             </button>

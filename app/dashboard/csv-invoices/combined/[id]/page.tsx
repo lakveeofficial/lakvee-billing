@@ -47,7 +47,7 @@ export default async function CombinedInvoicePrintPage({ params }: { params: { i
         </div>
       </div>
 
-      <div className="bg-white rounded-lg border shadow print:shadow-none print:rounded-none">
+      <div className="bg-white rounded-xl border shadow print:shadow-none print:rounded-none">
         {/* Company Header */}
         <div className="p-6">
           {/* Server-rendered company details for reliability */}
@@ -58,10 +58,10 @@ export default async function CombinedInvoicePrintPage({ params }: { params: { i
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <div className="text-lg font-extrabold">{invoice.party_name}</div>
-              <div className="text-sm text-gray-700 mt-1">Phone: {invoice.party_phone || '-'}</div>
-              {invoice.gstin ? (<div className="text-sm text-gray-700">GSTIN: {invoice.gstin}</div>) : null}
+              <div className="text-sm text-slate-700 mt-1">Phone: {invoice.party_phone || '-'}</div>
+              {invoice.gstin ? (<div className="text-sm text-slate-700">GSTIN: {invoice.gstin}</div>) : null}
             </div>
-            <div className="text-sm text-gray-700 md:text-right">
+            <div className="text-sm text-slate-700 md:text-right">
               <div><span className="font-semibold">Invoice No:</span> {invoice.invoice_number}</div>
               <div><span className="font-semibold">Date:</span> {fmtDate(invoice.invoice_date)}</div>
             </div>
@@ -72,7 +72,7 @@ export default async function CombinedInvoicePrintPage({ params }: { params: { i
         <div className="p-6">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b bg-gray-50">
+              <tr className="border-b bg-slate-50">
                 <th className="text-left px-2 py-2">S.NO.</th>
                 <th className="text-left px-2 py-2">ITEM</th>
                 <th className="text-left px-2 py-2">BOOKING DATE</th>
@@ -112,7 +112,7 @@ export default async function CombinedInvoicePrintPage({ params }: { params: { i
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t text-xs text-gray-700">
+        <div className="p-6 border-t text-xs text-slate-700">
           <div className="font-semibold mb-1">Terms & Conditions:</div>
           <div>Thanks for doing business with us!</div>
           <div className="mt-6 text-right">Authorized Signatory</div>

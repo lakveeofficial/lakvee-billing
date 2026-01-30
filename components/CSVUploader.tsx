@@ -19,7 +19,9 @@ export default function CSVUploader() {
   const downloadTemplate = async () => {
     try {
       setMessage({ text: 'Downloading template...', type: 'success' });
-      const response = await fetch('/api/upload');
+      const response = await fetch('/api/upload', {
+        credentials: 'include'
+      });
       
       if (!response.ok) {
         throw new Error('Failed to download template');
@@ -61,6 +63,7 @@ export default function CSVUploader() {
     try {
       const response = await fetch('/api/upload', {
         method: 'POST',
+        credentials: 'include',
         body: formData,
       });
 
@@ -101,7 +104,7 @@ export default function CSVUploader() {
     <div className="space-y-6">
       <div className="space-y-2">
         <h2 className="text-2xl font-bold">Upload Invoices via CSV</h2>
-        <p className="text-gray-600">
+        <p className="text-slate-600">
           Upload a CSV file with invoice data. Download the template below for the correct format.
         </p>
       </div>
@@ -110,7 +113,7 @@ export default function CSVUploader() {
         <button
           onClick={downloadTemplate}
           disabled={isUploading}
-          className="flex items-center gap-2 px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 rounded-md border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-50"
         >
           <Download className="h-4 w-4" />
           Download CSV Template
@@ -120,7 +123,7 @@ export default function CSVUploader() {
           <div className="space-y-2">
             <label 
               htmlFor="csv-upload" 
-              className="block text-sm font-medium text-gray-700"
+              className="block text-sm font-medium text-slate-700"
             >
               Select CSV File
             </label>
@@ -131,7 +134,7 @@ export default function CSVUploader() {
                 type="file"
                 accept=".csv"
                 onChange={handleFileChange}
-                className="block w-full text-sm text-gray-500
+                className="block w-full text-sm text-slate-500
                   file:mr-4 file:py-2 file:px-4
                   file:rounded-md file:border-0
                   file:text-sm file:font-semibold
@@ -141,7 +144,7 @@ export default function CSVUploader() {
               />
             </div>
             {file && (
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-sm text-slate-500">
                 Selected: {file.name} ({(file.size / 1024).toFixed(2)} KB)
               </p>
             )}

@@ -164,7 +164,7 @@ export default function SlabMasterPage() {
       <div className="flex items-center justify-center h-full min-h-[400px]">
         <div className="bg-white p-8 rounded shadow text-center">
           <h2 className="text-2xl font-bold mb-4 text-red-600">Access Denied</h2>
-          <p className="text-gray-700">You do not have permission to view this page.</p>
+          <p className="text-slate-700">You do not have permission to view this page.</p>
         </div>
       </div>
     );
@@ -237,22 +237,22 @@ export default function SlabMasterPage() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead>
             <tr>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Label</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">From</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">To</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Unit</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Rate</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Effective Date</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Distance Category</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Type</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Label</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">From</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">To</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Unit</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Rate</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Effective Date</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Status</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Distance Category</th>
               <th className="px-4 py-2"></th>
             </tr>
           </thead>
           <tbody>
             {slabs.length === 0 ? (
               <tr>
-                <td colSpan={10} className="text-center py-6 text-gray-400">
+                <td colSpan={10} className="text-center py-6 text-slate-400">
                   No slabs found.
                 </td>
               </tr>
@@ -270,7 +270,7 @@ export default function SlabMasterPage() {
                     <span className={
                       slab.status === "active"
                         ? "inline-block px-2 py-1 text-xs rounded bg-green-100 text-green-700"
-                        : "inline-block px-2 py-1 text-xs rounded bg-gray-200 text-gray-500"
+                        : "inline-block px-2 py-1 text-xs rounded bg-gray-200 text-slate-500"
                     }>
                       {slab.status}
                     </span>
@@ -278,7 +278,7 @@ export default function SlabMasterPage() {
                   <td className="px-4 py-2">{slab.slabType === "distance" ? slab.distanceCategory : "-"}</td>
                   <td className="px-4 py-2 flex space-x-2">
                     <button
-                      className="p-1 rounded hover:bg-gray-100"
+                      className="p-1 rounded hover:bg-slate-100"
                       title="Edit"
                       onClick={() => {
                         setEditingSlab(slab);
@@ -290,7 +290,7 @@ export default function SlabMasterPage() {
                       <Edit className="h-4 w-4" />
                     </button>
                     <button
-                      className="p-1 rounded hover:bg-gray-100 text-red-600"
+                      className="p-1 rounded hover:bg-slate-100 text-red-600"
                       title="Delete"
                       onClick={() => handleDeleteSlab(slab)}
                       disabled={!isAdmin}

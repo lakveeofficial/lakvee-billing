@@ -163,7 +163,7 @@ export default function GeneratePartyInvoiceButton({ rows, defaultParty, query, 
       <button
         type="button"
         onClick={onOpen}
-        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm"
+        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm"
         title="Generate Party Invoice"
       >
         <FilePlus2 className="h-4 w-4" /> Generate Party Invoice
@@ -185,13 +185,13 @@ export default function GeneratePartyInvoiceButton({ rows, defaultParty, query, 
 
             {/* Body */}
             <div className="bg-white px-6 py-5 space-y-3">
-              <div className="text-xs text-gray-500">Consignments selected: {ids.length} for party {(() => {
+              <div className="text-xs text-slate-500">Consignments selected: {ids.length} for party {(() => {
                 const p = apiParties.find(p => p.id === selectedPartyId)
                 return p ? `“${p.partyName}”` : (partyName ? `“${partyName}”` : '(not selected)')
               })()} {useAllFiltered ? '(all filtered)' : '(current page)'}.</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label className="flex flex-col text-sm">
-                  <span className="text-gray-700">Party</span>
+                  <span className="text-slate-700">Party</span>
                   <select className="border rounded px-2 py-1" value={selectedPartyId} onChange={e => setSelectedPartyId(e.target.value)}>
                     <option value="">Select party…</option>
                     {apiParties.map(p => (
@@ -201,31 +201,31 @@ export default function GeneratePartyInvoiceButton({ rows, defaultParty, query, 
                 </label>
                 {/* Removed Shipment/Mode/Service/Distance/Weight Slab/Base Rate inputs */}
                 <label className="flex flex-col text-sm">
-                  <span className="text-gray-700">Fuel % (optional)</span>
+                  <span className="text-slate-700">Fuel % (optional)</span>
                   <input className="border rounded px-2 py-1" value={fuelPct} onChange={e => setFuelPct(e.target.value)} placeholder="e.g. 20" />
                 </label>
                 <label className="flex flex-col text-sm">
-                  <span className="text-gray-700">Packing (optional)</span>
+                  <span className="text-slate-700">Packing (optional)</span>
                   <input className="border rounded px-2 py-1" value={packingAmt} onChange={e => setPackingAmt(e.target.value)} placeholder="e.g. 0" />
                 </label>
                 <label className="flex flex-col text-sm">
-                  <span className="text-gray-700">Handling (optional)</span>
+                  <span className="text-slate-700">Handling (optional)</span>
                   <input className="border rounded px-2 py-1" value={handlingAmt} onChange={e => setHandlingAmt(e.target.value)} placeholder="e.g. 0" />
                 </label>
                 <label className="flex flex-col text-sm">
-                  <span className="text-gray-700">GST % (optional)</span>
+                  <span className="text-slate-700">GST % (optional)</span>
                   <input className="border rounded px-2 py-1" value={gstPercent} onChange={e => setGstPercent(e.target.value)} placeholder="e.g. 18" />
                 </label>
                 <label className="flex flex-col text-sm">
-                  <span className="text-gray-700">Period From (optional)</span>
+                  <span className="text-slate-700">Period From (optional)</span>
                   <input type="date" className="border rounded px-2 py-1" value={periodFrom} onChange={e => setPeriodFrom(e.target.value)} />
                 </label>
                 <label className="flex flex-col text-sm">
-                  <span className="text-gray-700">Period To (optional)</span>
+                  <span className="text-slate-700">Period To (optional)</span>
                   <input type="date" className="border rounded px-2 py-1" value={periodTo} onChange={e => setPeriodTo(e.target.value)} />
                 </label>
                 <label className="flex flex-col text-sm sm:col-span-2">
-                  <span className="text-gray-700">Payment Mode (optional)</span>
+                  <span className="text-slate-700">Payment Mode (optional)</span>
                   <input className="border rounded px-2 py-1" value={paymentMode} onChange={e => setPaymentMode(e.target.value)} placeholder="Credit / Cash / ..." />
                 </label>
                 <label className="flex items-center gap-2 text-sm sm:col-span-2">
@@ -266,7 +266,7 @@ export default function GeneratePartyInvoiceButton({ rows, defaultParty, query, 
 
             {/* Footer */}
             <div className="bg-white px-6 pb-6 flex items-center justify-end gap-2">
-              <button className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50" onClick={() => setOpen(false)} disabled={submitting}>Close</button>
+              <button className="px-4 py-2 rounded-md border border-slate-300 text-slate-700 hover:bg-slate-50" onClick={() => setOpen(false)} disabled={submitting}>Close</button>
               <button
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-white bg-gradient-to-r from-primary-600 to-emerald-600 hover:from-primary-700 hover:to-emerald-700 disabled:opacity-60"
                 onClick={submit}

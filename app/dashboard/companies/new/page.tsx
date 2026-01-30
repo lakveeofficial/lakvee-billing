@@ -199,22 +199,22 @@ export default function NewCompanyPage() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {/* Logo and Signature Upload */}
-        <div className="bg-white p-6 rounded-lg border">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Company Branding</h2>
+        <div className="bg-white p-6 rounded-xl border">
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">Company Branding</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Logo Upload */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 Company Logo
               </label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+              <div className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center">
                 {logo ? (
                   <div className="relative">
                     <img
                       src={logo}
                       alt="Company Logo"
-                      className="max-h-32 mx-auto rounded-lg"
+                      className="max-h-32 mx-auto rounded-xl"
                     />
                     <button
                       type="button"
@@ -226,9 +226,9 @@ export default function NewCompanyPage() {
                   </div>
                 ) : (
                   <div>
-                    <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-sm text-gray-600 mb-2">Upload Company Logo</p>
-                    <p className="text-xs text-gray-500">PNG, JPG up to 5MB</p>
+                    <ImageIcon className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                    <p className="text-sm text-slate-600 mb-2">Upload Company Logo</p>
+                    <p className="text-xs text-slate-500">PNG, JPG up to 5MB</p>
                   </div>
                 )}
                 <input
@@ -241,7 +241,7 @@ export default function NewCompanyPage() {
                 <button
                   type="button"
                   onClick={() => logoInputRef.current?.click()}
-                  className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                  className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600"
                 >
                   <Upload className="w-4 h-4 inline mr-2" />
                   {logo ? 'Change Logo' : 'Upload Logo'}
@@ -251,16 +251,16 @@ export default function NewCompanyPage() {
 
             {/* Signature Upload */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 Digital Signature
               </label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+              <div className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center">
                 {signature ? (
                   <div className="relative">
                     <img
                       src={signature}
                       alt="Digital Signature"
-                      className="max-h-32 mx-auto rounded-lg"
+                      className="max-h-32 mx-auto rounded-xl"
                     />
                     <button
                       type="button"
@@ -272,9 +272,9 @@ export default function NewCompanyPage() {
                   </div>
                 ) : (
                   <div>
-                    <FileSignature className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-sm text-gray-600 mb-2">Upload Digital Signature</p>
-                    <p className="text-xs text-gray-500">PNG, JPG up to 5MB</p>
+                    <FileSignature className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                    <p className="text-sm text-slate-600 mb-2">Upload Digital Signature</p>
+                    <p className="text-xs text-slate-500">PNG, JPG up to 5MB</p>
                   </div>
                 )}
                 <input
@@ -287,7 +287,7 @@ export default function NewCompanyPage() {
                 <button
                   type="button"
                   onClick={() => signatureInputRef.current?.click()}
-                  className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                  className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600"
                 >
                   <Upload className="w-4 h-4 inline mr-2" />
                   {signature ? 'Change Signature' : 'Upload Signature'}
@@ -298,18 +298,18 @@ export default function NewCompanyPage() {
         </div>
 
         {/* Business Details */}
-        <div className="bg-white p-6 rounded-lg border">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Business Details</h2>
+        <div className="bg-white p-6 rounded-xl border">
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">Business Details</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Business Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 {...register('businessName', { required: 'Business name is required' })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Enter business name"
               />
               {errors.businessName && (
@@ -318,7 +318,7 @@ export default function NewCompanyPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Phone Number <span className="text-red-500">*</span>
               </label>
               <input
@@ -327,7 +327,7 @@ export default function NewCompanyPage() {
                   required: 'Phone number is required',
                   validate: validatePhone
                 })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Enter phone number"
               />
               {errors.phoneNumber && (
@@ -336,13 +336,13 @@ export default function NewCompanyPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 GSTIN
               </label>
               <input
                 type="text"
                 {...register('gstin', { validate: validateGSTIN })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Enter GSTIN"
               />
               {errors.gstin && (
@@ -351,7 +351,7 @@ export default function NewCompanyPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Email ID <span className="text-red-500">*</span>
               </label>
               <input
@@ -360,7 +360,7 @@ export default function NewCompanyPage() {
                   required: 'Email is required',
                   validate: validateEmail
                 })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Enter email address"
               />
               {errors.emailId && (
@@ -369,12 +369,12 @@ export default function NewCompanyPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Business Type <span className="text-red-500">*</span>
               </label>
               <select
                 {...register('businessType', { required: 'Business type is required' })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">Select business type</option>
                 {BUSINESS_TYPES.map(type => (
@@ -387,12 +387,12 @@ export default function NewCompanyPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Business Category <span className="text-red-500">*</span>
               </label>
               <select
                 {...register('businessCategory', { required: 'Business category is required' })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">Select business category</option>
                 {BUSINESS_CATEGORIES.map(category => (
@@ -405,12 +405,12 @@ export default function NewCompanyPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 State <span className="text-red-500">*</span>
               </label>
               <select
                 {...register('state', { required: 'State is required' })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">Select state</option>
                 {INDIAN_STATES.map(state => (
@@ -423,7 +423,7 @@ export default function NewCompanyPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Pincode <span className="text-red-500">*</span>
               </label>
               <input
@@ -432,7 +432,7 @@ export default function NewCompanyPage() {
                   required: 'Pincode is required',
                   validate: validatePincode
                 })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Enter pincode"
               />
               {errors.pincode && (
@@ -442,13 +442,13 @@ export default function NewCompanyPage() {
           </div>
 
           <div className="mt-6">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-slate-700 mb-1">
               Business Address <span className="text-red-500">*</span>
             </label>
             <textarea
               {...register('businessAddress', { required: 'Business address is required' })}
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Enter complete business address"
             />
             {errors.businessAddress && (
@@ -461,9 +461,9 @@ export default function NewCompanyPage() {
               <input
                 type="checkbox"
                 {...register('isActive')}
-                className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                className="rounded border-slate-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
               />
-              <span className="ml-2 text-sm text-gray-700">Set as active company</span>
+              <span className="ml-2 text-sm text-slate-700">Set as active company</span>
             </label>
           </div>
         </div>
@@ -473,14 +473,14 @@ export default function NewCompanyPage() {
           <button
             type="button"
             onClick={() => router.back()}
-            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+            className="px-6 py-2 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 flex items-center gap-2"
+            className="px-6 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 disabled:opacity-50 flex items-center gap-2"
           >
             <Save className="w-4 h-4" />
             {loading ? 'Saving...' : 'Save Company'}

@@ -196,64 +196,64 @@ export default function EditCompanyPage() {
       />
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-        <div className="bg-white p-6 rounded-lg border">
+        <div className="bg-white p-6 rounded-xl border">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left side: Form inputs */}
             <div className="lg:col-span-2 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Business Name <span className="text-red-500">*</span></label>
-                  <input type="text" {...register('businessName', { required: 'Business name is required' })} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Enter business name" />
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Business Name <span className="text-red-500">*</span></label>
+                  <input type="text" {...register('businessName', { required: 'Business name is required' })} className="w-full px-3 py-2 border border-slate-300 rounded-xl" placeholder="Enter business name" />
                   {errors.businessName && <p className="mt-1 text-sm text-red-600">{errors.businessName.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number <span className="text-red-500">*</span></label>
-                  <input type="text" {...register('phoneNumber', { required: 'Phone number is required', validate: validatePhone })} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Enter phone number" />
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Phone Number <span className="text-red-500">*</span></label>
+                  <input type="text" {...register('phoneNumber', { required: 'Phone number is required', validate: validatePhone })} className="w-full px-3 py-2 border border-slate-300 rounded-xl" placeholder="Enter phone number" />
                   {errors.phoneNumber && <p className="mt-1 text-sm text-red-600">{errors.phoneNumber.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email ID <span className="text-red-500">*</span></label>
-                  <input type="email" {...register('emailId', { required: 'Email is required', validate: validateEmail })} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Enter email address" />
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Email ID <span className="text-red-500">*</span></label>
+                  <input type="email" {...register('emailId', { required: 'Email is required', validate: validateEmail })} className="w-full px-3 py-2 border border-slate-300 rounded-xl" placeholder="Enter email address" />
                   {errors.emailId && <p className="mt-1 text-sm text-red-600">{errors.emailId.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">GSTIN</label>
-                  <input type="text" {...register('gstin', { validate: validateGSTIN })} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Enter GSTIN (optional)" />
+                  <label className="block text-sm font-medium text-slate-700 mb-1">GSTIN</label>
+                  <input type="text" {...register('gstin', { validate: validateGSTIN })} className="w-full px-3 py-2 border border-slate-300 rounded-xl" placeholder="Enter GSTIN (optional)" />
                   {errors.gstin && <p className="mt-1 text-sm text-red-600">{errors.gstin.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Business Type <span className="text-red-500">*</span></label>
-                  <select {...register('businessType', { required: 'Business type is required' })} className="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Business Type <span className="text-red-500">*</span></label>
+                  <select {...register('businessType', { required: 'Business type is required' })} className="w-full px-3 py-2 border border-slate-300 rounded-xl">
                     <option value="">Select business type</option>
                     {BUSINESS_TYPES.map(type => <option key={type.value} value={type.value}>{type.label}</option>)}
                   </select>
                   {errors.businessType && <p className="mt-1 text-sm text-red-600">{errors.businessType.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Business Category <span className="text-red-500">*</span></label>
-                  <select {...register('businessCategory', { required: 'Business category is required' })} className="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Business Category <span className="text-red-500">*</span></label>
+                  <select {...register('businessCategory', { required: 'Business category is required' })} className="w-full px-3 py-2 border border-slate-300 rounded-xl">
                     <option value="">Select business category</option>
                     {BUSINESS_CATEGORIES.map(category => <option key={category.value} value={category.value}>{category.label}</option>)}
                   </select>
                   {errors.businessCategory && <p className="mt-1 text-sm text-red-600">{errors.businessCategory.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">State <span className="text-red-500">*</span></label>
-                  <select {...register('state', { required: 'State is required' })} className="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">State <span className="text-red-500">*</span></label>
+                  <select {...register('state', { required: 'State is required' })} className="w-full px-3 py-2 border border-slate-300 rounded-xl">
                     <option value="">Select state</option>
                     {INDIAN_STATES.map(state => <option key={state} value={state}>{state}</option>)}
                   </select>
                   {errors.state && <p className="mt-1 text-sm text-red-600">{errors.state.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Pincode <span className="text-red-500">*</span></label>
-                  <input type="text" {...register('pincode', { required: 'Pincode is required', validate: validatePincode })} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Enter pincode" />
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Pincode <span className="text-red-500">*</span></label>
+                  <input type="text" {...register('pincode', { required: 'Pincode is required', validate: validatePincode })} className="w-full px-3 py-2 border border-slate-300 rounded-xl" placeholder="Enter pincode" />
                   {errors.pincode && <p className="mt-1 text-sm text-red-600">{errors.pincode.message}</p>}
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Business Address <span className="text-red-500">*</span></label>
-                <textarea {...register('businessAddress', { required: 'Business address is required' })} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Enter complete business address" />
+                <label className="block text-sm font-medium text-slate-700 mb-1">Business Address <span className="text-red-500">*</span></label>
+                <textarea {...register('businessAddress', { required: 'Business address is required' })} rows={3} className="w-full px-3 py-2 border border-slate-300 rounded-xl" placeholder="Enter complete business address" />
                 {errors.businessAddress && <p className="mt-1 text-sm text-red-600">{errors.businessAddress.message}</p>}
               </div>
             </div>
@@ -261,8 +261,8 @@ export default function EditCompanyPage() {
             {/* Right side: Logo and signature uploads */}
             <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Company Logo</label>
-                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Company Logo</label>
+                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 border-dashed rounded-md">
                   <div className="space-y-1 text-center">
                     {logo ? (
                       <div>
@@ -270,22 +270,22 @@ export default function EditCompanyPage() {
                         <button type="button" onClick={removeLogo} className="mt-2 text-sm text-red-600 hover:text-red-800">Remove</button>
                       </div>
                     ) : (
-                      <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
+                      <ImageIcon className="mx-auto h-12 w-12 text-slate-400" />
                     )}
-                    <div className="flex text-sm text-gray-600">
+                    <div className="flex text-sm text-slate-600">
                       <label htmlFor="logo-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
                         <span>Upload a file</span>
                         <input id="logo-upload" name="logo-upload" type="file" className="sr-only" onChange={handleLogoUpload} accept="image/*" ref={logoInputRef} />
                       </label>
                       <p className="pl-1">or drag and drop</p>
                     </div>
-                    <p className="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
+                    <p className="text-xs text-slate-500">PNG, JPG, GIF up to 10MB</p>
                   </div>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Digital Signature</label>
-                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Digital Signature</label>
+                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 border-dashed rounded-md">
                   <div className="space-y-1 text-center">
                     {signature ? (
                       <div>
@@ -293,16 +293,16 @@ export default function EditCompanyPage() {
                         <button type="button" onClick={removeSignature} className="mt-2 text-sm text-red-600 hover:text-red-800">Remove</button>
                       </div>
                     ) : (
-                      <FileSignature className="mx-auto h-12 w-12 text-gray-400" />
+                      <FileSignature className="mx-auto h-12 w-12 text-slate-400" />
                     )}
-                    <div className="flex text-sm text-gray-600">
+                    <div className="flex text-sm text-slate-600">
                       <label htmlFor="signature-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
                         <span>Upload a file</span>
                         <input id="signature-upload" name="signature-upload" type="file" className="sr-only" onChange={handleSignatureUpload} accept="image/*" ref={signatureInputRef} />
                       </label>
                       <p className="pl-1">or drag and drop</p>
                     </div>
-                    <p className="text-xs text-gray-500">PNG, JPG up to 5MB</p>
+                    <p className="text-xs text-slate-500">PNG, JPG up to 5MB</p>
                   </div>
                 </div>
               </div>
@@ -310,8 +310,8 @@ export default function EditCompanyPage() {
           </div>
         </div>
         <div className="flex justify-end gap-4">
-          <button type="button" onClick={() => router.back()} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">Cancel</button>
-          <button type="submit" disabled={loading} className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 flex items-center gap-2">
+          <button type="button" onClick={() => router.back()} className="px-6 py-2 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50">Cancel</button>
+          <button type="submit" disabled={loading} className="px-6 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 disabled:opacity-50 flex items-center gap-2">
             <Save className="w-4 h-4" />
             {loading ? 'Saving...' : 'Save Changes'}
           </button>

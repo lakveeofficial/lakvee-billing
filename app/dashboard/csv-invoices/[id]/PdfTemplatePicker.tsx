@@ -8,7 +8,7 @@ export default function PdfTemplatePicker({ id }: { id: string }) {
       filename={`csv-invoice-${id}.pdf`}
       variant="button"
       showTemplateSelector={true}
-      className="px-3 py-2 border rounded hover:bg-gray-50 text-sm"
+      className="px-3 py-2 border rounded hover:bg-slate-50 text-sm"
     />
   )
 }

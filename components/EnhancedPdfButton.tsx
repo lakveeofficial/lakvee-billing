@@ -122,7 +122,7 @@ export default function EnhancedPdfButton({
         <button
           onClick={handleQuickView}
           disabled={loading}
-          className={`p-2.5 rounded-md hover:bg-gray-100 text-gray-700 disabled:opacity-50 border border-transparent hover:border-gray-200 transition ${className}`}
+          className={`p-2.5 rounded-md hover:bg-slate-100 text-slate-700 disabled:opacity-50 border border-transparent hover:border-slate-200 transition ${className}`}
           title={loading ? 'Loading...' : 'View PDF'}
         >
           {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Printer className="h-5 w-5" />}
@@ -158,7 +158,7 @@ export default function EnhancedPdfButton({
         <button
           onClick={() => setShowDropdown(!showDropdown)}
           disabled={loading}
-          className={`flex items-center px-3 py-2 text-sm rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 ${className}`}
+          className={`flex items-center px-3 py-2 text-sm rounded-md border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 ${className}`}
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Printer className="h-4 w-4 mr-2" />}
           PDF
@@ -166,14 +166,14 @@ export default function EnhancedPdfButton({
         </button>
 
         {showDropdown && (
-          <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-10">
+          <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-slate-200 z-10">
             <div className="py-1">
               <button
                 onClick={() => {
                   setShowDropdown(false)
                   handleQuickView()
                 }}
-                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                className="flex items-center w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
               >
                 <Eye className="h-4 w-4 mr-2" />
                 View PDF
@@ -183,7 +183,7 @@ export default function EnhancedPdfButton({
                   setShowDropdown(false)
                   handleQuickDownload()
                 }}
-                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                className="flex items-center w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
               >
                 <Download className="h-4 w-4 mr-2" />
                 Download PDF

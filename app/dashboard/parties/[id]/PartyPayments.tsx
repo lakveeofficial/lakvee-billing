@@ -50,32 +50,32 @@ export default function PartyPayments({ partyId }: { partyId: number }) {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
+    <div className="bg-white rounded-xl shadow p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-medium text-gray-900">Payments</h3>
+        <h3 className="text-lg font-medium text-slate-900">Payments</h3>
       </div>
 
       {loading ? (
-        <div className="text-sm text-gray-500">Loading payments…</div>
+        <div className="text-sm text-slate-500">Loading payments…</div>
       ) : error ? (
         <div className="text-sm text-red-600">{error}</div>
       ) : rows.length === 0 ? (
-        <div className="text-sm text-gray-500">No payments yet.</div>
+        <div className="text-sm text-slate-500">No payments yet.</div>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50">
+            <thead className="bg-slate-50">
               <tr>
-                <th className="px-3 py-2 text-left font-medium text-gray-700">Date</th>
-                <th className="px-3 py-2 text-right font-medium text-gray-700">Amount</th>
-                <th className="px-3 py-2 text-left font-medium text-gray-700">Method</th>
-                <th className="px-3 py-2 text-left font-medium text-gray-700">Reference</th>
-                <th className="px-3 py-2 text-left font-medium text-gray-700">Notes</th>
+                <th className="px-3 py-2 text-left font-medium text-slate-700">Date</th>
+                <th className="px-3 py-2 text-right font-medium text-slate-700">Amount</th>
+                <th className="px-3 py-2 text-left font-medium text-slate-700">Method</th>
+                <th className="px-3 py-2 text-left font-medium text-slate-700">Reference</th>
+                <th className="px-3 py-2 text-left font-medium text-slate-700">Notes</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {rows.map(r => (
-                <tr key={r.id} className="hover:bg-gray-50">
+                <tr key={r.id} className="hover:bg-slate-50">
                   <td className="px-3 py-2">{new Date(r.payment_date).toLocaleDateString('en-IN')}</td>
                   <td className="px-3 py-2 text-right">₹ {Number(r.amount).toFixed(2)}</td>
                   <td className="px-3 py-2">{r.payment_method || '-'}</td>

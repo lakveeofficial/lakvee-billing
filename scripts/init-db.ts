@@ -6,14 +6,33 @@ import * as dotenv from 'dotenv';
 import * as path from 'path';
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
+// Prefer SSL for remote databases (e.g., Neon/Render); disable only for localhost
+function inferSSLFromUrl(url?: string) {
+  try {
+    if (!url) return false
+    const u = new URL(url)
+    const host = (u.hostname || '').toLowerCase()
+    return !(host === 'localhost' || host === '127.0.0.1')
+  } catch {
+    return process.env.NODE_ENV === 'production'
+  }
+}
+
+const needsSSL = inferSSLFromUrl(process.env.DATABASE_URL)
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  ssl: needsSSL ? { rejectUnauthorized: false } : false,
 });
 
 async function initializeDatabase() {
   const client = await pool.connect();
-  console.log('Connected to the database, starting initialization...');
+  try {
+    const u = new URL(process.env.DATABASE_URL || '')
+    console.log(`Connected to database host: ${u.hostname} (ssl=${needsSSL ? 'on' : 'off'})`)
+  } catch {
+    console.log('Connected to the database, starting initialization...')
+  }
 
   try {
     await client.query('BEGIN');
@@ -22,6 +41,16 @@ async function initializeDatabase() {
     console.log('Dropping legacy bookings tables if present...');
     await client.query(`DROP TABLE IF EXISTS booking_items CASCADE`);
     await client.query(`DROP TABLE IF EXISTS bookings CASCADE`);
+
+    console.log('Creating slabs table...');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS slabs (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
 
     console.log('Creating users table...');
     await client.query(`
@@ -36,36 +65,6 @@ async function initializeDatabase() {
       )
     `);
 
-    // Party-specific rate slabs table
-    console.log('Creating party_rate_slabs table...');
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS party_rate_slabs (
-        id SERIAL PRIMARY KEY,
-        party_id INTEGER NOT NULL REFERENCES parties(id) ON DELETE CASCADE,
-        shipment_type VARCHAR(20) NOT NULL CHECK (shipment_type IN ('DOCUMENT', 'NON_DOCUMENT')),
-        mode_id INTEGER NOT NULL,
-        service_type_id INTEGER,
-        distance_slab_id INTEGER NOT NULL,
-        slab_id INTEGER NOT NULL,
-        rate NUMERIC NOT NULL DEFAULT 0,
-        fuel_pct NUMERIC,
-        packing NUMERIC,
-        handling NUMERIC,
-        gst_pct NUMERIC,
-        is_active BOOLEAN DEFAULT TRUE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    await client.query('CREATE INDEX IF NOT EXISTS idx_prs_party ON party_rate_slabs(party_id)');
-    await client.query('CREATE INDEX IF NOT EXISTS idx_prs_combo ON party_rate_slabs(party_id, shipment_type, mode_id, service_type_id, distance_slab_id, slab_id)');
-
-    // Ensure legacy/new columns are handled
-    await client.query(`ALTER TABLE party_rate_slabs ADD COLUMN IF NOT EXISTS packing NUMERIC`);
-    // Ensure legacy columns are removed if present
-    await client.query(`ALTER TABLE party_rate_slabs DROP COLUMN IF EXISTS effective_from`);
-    await client.query(`ALTER TABLE party_rate_slabs DROP COLUMN IF EXISTS effective_to`);
 
     // Create csv_invoices table (separate structure for CSV uploaded invoices)
     console.log('Creating csv_invoices table...');
@@ -152,10 +151,10 @@ async function initializeDatabase() {
       WHERE consignment_no IS NOT NULL
     `);
 
-    // Link CSV rows to generated invoices to prevent double billing
+    // Add invoice_id column without FK constraint (will add FK later after invoices table exists)
     await client.query(`
       ALTER TABLE csv_invoices
-      ADD COLUMN IF NOT EXISTS invoice_id INTEGER REFERENCES invoices(id) ON DELETE SET NULL
+      ADD COLUMN IF NOT EXISTS invoice_id INTEGER
     `);
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_csv_invoices_invoice_id ON csv_invoices(invoice_id)
@@ -182,31 +181,67 @@ async function initializeDatabase() {
         shipping_pincode VARCHAR(10),
         shipping_phone VARCHAR(20),
         use_same_address BOOLEAN DEFAULT TRUE,
-        created_by INTEGER REFERENCES users(id),
+        created_by INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    // Ensure GST type, slab assignment, and shipping address columns exist on parties
+    console.log('Creating companies table...');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS companies (
+        id SERIAL PRIMARY KEY,
+        company_name VARCHAR(255) NOT NULL,
+        gstin VARCHAR(15),
+        phone VARCHAR(20),
+        email VARCHAR(100),
+        address TEXT,
+        city VARCHAR(100),
+        state VARCHAR(100),
+        pincode VARCHAR(10),
+        pan_number VARCHAR(10),
+        created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    console.log('Creating active_companies table...');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS active_companies (
+        user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    console.log('Creating party_quotations table...');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS party_quotations (
+        id SERIAL PRIMARY KEY,
+        party_id INTEGER NOT NULL REFERENCES parties(id) ON DELETE CASCADE,
+        package_type VARCHAR(50) NOT NULL,
+        rates JSONB NOT NULL,
+        created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(party_id, package_type)
+      )
+    `);
+
     console.log('Ensuring all columns on parties table...');
     await client.query(`
       ALTER TABLE parties
       ADD COLUMN IF NOT EXISTS gst_type VARCHAR(20) DEFAULT 'unregistered',
-      ADD COLUMN IF NOT EXISTS weight_slab_id INTEGER,
-      ADD COLUMN IF NOT EXISTS distance_slab_id INTEGER,
-      ADD COLUMN IF NOT EXISTS distance_category VARCHAR(50),
-      ADD COLUMN IF NOT EXISTS volume_slab_id INTEGER,
-      ADD COLUMN IF NOT EXISTS cod_slab_id INTEGER,
-      ADD COLUMN IF NOT EXISTS shipping_address TEXT,
-      ADD COLUMN IF NOT EXISTS shipping_city VARCHAR(100),
-      ADD COLUMN IF NOT EXISTS shipping_state VARCHAR(100),
-      ADD COLUMN IF NOT EXISTS shipping_pincode VARCHAR(10),
-      ADD COLUMN IF NOT EXISTS shipping_phone VARCHAR(20),
-      ADD COLUMN IF NOT EXISTS use_same_address BOOLEAN DEFAULT TRUE
+      ADD COLUMN IF NOT EXISTS created_by INTEGER,
+      ADD COLUMN IF NOT EXISTS gstin VARCHAR(15),
+      ADD COLUMN IF NOT EXISTS billing_address JSONB,
+      ADD COLUMN IF NOT EXISTS shipping_address JSONB,
+      ADD COLUMN IF NOT EXISTS use_shipping_address BOOLEAN DEFAULT FALSE
     `);
 
-    // Ensure CHECK constraint on gst_type allowed values
+
     const checkRes = await client.query(
       `SELECT conname FROM pg_constraint WHERE conname = 'chk_parties_gst_type'`
     );
@@ -218,41 +253,43 @@ async function initializeDatabase() {
       `);
     }
 
-    // Add foreign keys referencing slabs (if not already present)
-    // Use constraint names so we can check existence via pg_constraint
-    const fkChecks = await client.query(`
-      SELECT conname FROM pg_constraint WHERE conname = ANY($1)
-    `, [[
-      'fk_parties_weight_slab',
-      'fk_parties_distance_slab',
-      'fk_parties_volume_slab',
-      'fk_parties_cod_slab'
-    ]]);
-    const existing = new Set(fkChecks.rows.map(r => r.conname));
-    if (!existing.has('fk_parties_weight_slab')) {
-      await client.query(`
-        ALTER TABLE parties
-        ADD CONSTRAINT fk_parties_weight_slab FOREIGN KEY (weight_slab_id) REFERENCES slabs(id) ON DELETE SET NULL
-      `);
-    }
-    if (!existing.has('fk_parties_distance_slab')) {
-      await client.query(`
-        ALTER TABLE parties
-        ADD CONSTRAINT fk_parties_distance_slab FOREIGN KEY (distance_slab_id) REFERENCES slabs(id) ON DELETE SET NULL
-      `);
-    }
-    if (!existing.has('fk_parties_volume_slab')) {
-      await client.query(`
-        ALTER TABLE parties
-        ADD CONSTRAINT fk_parties_volume_slab FOREIGN KEY (volume_slab_id) REFERENCES slabs(id) ON DELETE SET NULL
-      `);
-    }
-    if (!existing.has('fk_parties_cod_slab')) {
-      await client.query(`
-        ALTER TABLE parties
-        ADD CONSTRAINT fk_parties_cod_slab FOREIGN KEY (cod_slab_id) REFERENCES slabs(id) ON DELETE SET NULL
-      `);
-    }
+    console.log('Adding client-specific fields to parties table...');
+    await client.query(`
+      ALTER TABLE parties 
+      ADD COLUMN IF NOT EXISTS client_type VARCHAR(20) DEFAULT NULL,
+      ADD COLUMN IF NOT EXISTS email2 TEXT DEFAULT NULL,
+      ADD COLUMN IF NOT EXISTS fuel_charge_percent DECIMAL(5,2) DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS fov_charge_percent DECIMAL(5,2) DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS cgst_percent DECIMAL(5,2) DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS sgst_percent DECIMAL(5,2) DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS igst_percent DECIMAL(5,2) DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS send_weights_in_email BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS send_charges_in_email BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS send_carrier_in_email BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS send_remark_in_email BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS send_welcome_sms BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS ignore_while_import BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS booking_with_gst BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'Active',
+      ADD COLUMN IF NOT EXISTS updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL
+    `);
+
+    // Create index for client_type for better query performance
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_parties_client_type ON parties(client_type)
+    `);
+
+    // Update existing parties to have default values for new fields
+    await client.query(`
+      UPDATE parties SET 
+        fuel_charge_percent = 0,
+        fov_charge_percent = 0,
+        cgst_percent = 0,
+        sgst_percent = 0,
+        igst_percent = 0,
+        status = 'Active'
+      WHERE fuel_charge_percent IS NULL
+    `);
 
     // Add normalized unique index on parties.party_name to prevent duplicates caused by whitespace/case variants
     // We first detect duplicates; if any exist, we skip creating the index and log a warning.
@@ -355,24 +392,18 @@ async function initializeDatabase() {
     await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS booking_ref TEXT`);
     await client.query('CREATE INDEX IF NOT EXISTS idx_invoices_booking_ref ON invoices(booking_ref)');
 
-    console.log('Creating payments table...');
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS payments (
-        id SERIAL PRIMARY KEY,
-        invoice_id INTEGER REFERENCES invoices(id) ON DELETE CASCADE,
-        payment_date DATE NOT NULL,
-        amount DECIMAL(12,2) NOT NULL,
-        payment_method VARCHAR(50),
-        reference_number VARCHAR(100),
-        notes TEXT,
-        created_by INTEGER REFERENCES users(id),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
     console.log('Creating indexes...');
     await client.query('CREATE INDEX IF NOT EXISTS idx_invoices_party_id ON invoices(party_id);');
     await client.query('CREATE INDEX IF NOT EXISTS idx_invoices_date ON invoices(invoice_date);');
+
+    // Now add FK from csv_invoices to invoices
+    const csvInvFk = await client.query(`SELECT conname FROM pg_constraint WHERE conname = 'fk_csv_invoices_invoice'`);
+    if (csvInvFk.rows.length === 0) {
+      await client.query(`
+        ALTER TABLE csv_invoices
+        ADD CONSTRAINT fk_csv_invoices_invoice FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE SET NULL
+      `);
+    }
     await client.query('CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(payment_status);');
     await client.query('CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice_id ON invoice_items(invoice_id);');
     await client.query('CREATE INDEX IF NOT EXISTS idx_payments_invoice_id ON payments(invoice_id);');
@@ -479,6 +510,483 @@ async function initializeDatabase() {
         'SURFACE_EXPRESS'
       )
     `);
+
+    // ==============================
+    // FRS Setup tables and seeds
+    // ==============================
+    console.log('Creating FRS Setup tables (regions, centers, carriers, operators, sms, quotation defaults, receivers)...');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS regions (
+        id SERIAL PRIMARY KEY,
+        code TEXT UNIQUE,
+        name TEXT UNIQUE NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now()
+      );
+    `);
+
+    // Create indexes for better performance
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_regions_code ON regions(code);
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_regions_name ON regions(name);
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS region_states (
+        region_id INT NOT NULL REFERENCES regions(id) ON DELETE CASCADE,
+        state_code TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        PRIMARY KEY(region_id, state_code)
+      );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS centers (
+        id SERIAL PRIMARY KEY,
+        state TEXT,
+        city TEXT NOT NULL,
+        region_id INT REFERENCES regions(id) ON DELETE SET NULL,
+        booking_count INT NOT NULL DEFAULT 0,
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now()
+      );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS carriers (
+        id SERIAL PRIMARY KEY,
+        name TEXT UNIQUE NOT NULL,
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now()
+      );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS operators (
+        id SERIAL PRIMARY KEY,
+        user_id INT UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+        booking_rights JSONB,
+        bill_item_preferences JSONB,
+        bill_template TEXT,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now()
+      );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS sms_formats (
+        id SERIAL PRIMARY KEY,
+        name TEXT UNIQUE NOT NULL,
+        template TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now()
+      );
+    `);
+
+    console.log('Creating weight_slabs table...');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS weight_slabs (
+        id SERIAL PRIMARY KEY,
+        slab_name TEXT NOT NULL,
+        min_weight_grams INT NOT NULL,
+        max_weight_grams INT NOT NULL,
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT uq_weight_range UNIQUE (min_weight_grams, max_weight_grams)
+      );
+    `);
+
+    console.log('Creating quotation tables...');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS quotation_defaults (
+        id SERIAL PRIMARY KEY,
+        region_id INT REFERENCES regions(id) ON DELETE CASCADE,
+        package_type TEXT NOT NULL CHECK (package_type IN ('DOCUMENT','NON_DOCUMENT')),
+        slab_id INTEGER REFERENCES weight_slabs(id) ON DELETE CASCADE,
+        base_rate NUMERIC(12,2) NOT NULL DEFAULT 0,
+        extra_per_1000g NUMERIC(12,2) DEFAULT 0,
+        notes TEXT,
+        UNIQUE(region_id, package_type, slab_id)
+      );
+    `);
+
+    // Ensure slab_id column exists in quotation_defaults
+    await client.query(`ALTER TABLE quotation_defaults ADD COLUMN IF NOT EXISTS slab_id INTEGER REFERENCES weight_slabs(id) ON DELETE CASCADE`);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS quotation_notes (
+        id SERIAL PRIMARY KEY,
+        title TEXT UNIQUE,
+        body TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now()
+      );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS receivers (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        city TEXT,
+        contact TEXT,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now()
+      );
+    `);
+
+    // Create account_bookings table for cash and account bookings (updated schema)
+    console.log('Creating account_bookings table...');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS account_bookings (
+        id SERIAL PRIMARY KEY,
+        booking_date DATE NOT NULL,
+        sender VARCHAR(255) NOT NULL,
+        center VARCHAR(255),
+        receiver VARCHAR(255) NOT NULL,
+        mobile VARCHAR(20),
+        carrier VARCHAR(255),
+        reference_number VARCHAR(100),
+        consignment_number VARCHAR(100),
+        package_type VARCHAR(50),
+        weight DECIMAL(10,2),
+        weight_unit VARCHAR(10) DEFAULT 'kg',
+        number_of_boxes INTEGER DEFAULT 1,
+        gross_amount DECIMAL(10,2) DEFAULT 0,
+        other_charges DECIMAL(10,2) DEFAULT 0,
+        insurance_amount DECIMAL(10,2) DEFAULT 0,
+        parcel_value DECIMAL(10,2) DEFAULT 0,
+        net_amount DECIMAL(10,2) DEFAULT 0,
+        remarks TEXT,
+        status VARCHAR(50) DEFAULT 'pending',
+        created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Migrate existing account_bookings table to new schema if needed
+    console.log('Migrating account_bookings table schema if needed...');
+
+    // Check if old schema exists and migrate
+    const oldSchemaCheck = await client.query(`
+      SELECT column_name FROM information_schema.columns 
+      WHERE table_name = 'account_bookings' AND column_name = 'sender_name'
+    `);
+
+    if (oldSchemaCheck.rows.length > 0) {
+      console.log('Found old schema, migrating to new schema...');
+      // Drop old table and recreate with new schema
+      await client.query(`DROP TABLE IF EXISTS account_bookings CASCADE`);
+      await client.query(`
+        CREATE TABLE account_bookings (
+          id SERIAL PRIMARY KEY,
+          booking_date DATE NOT NULL,
+          sender VARCHAR(255) NOT NULL,
+          center VARCHAR(255),
+          receiver VARCHAR(255) NOT NULL,
+          mobile VARCHAR(20),
+          carrier VARCHAR(255),
+          reference_number VARCHAR(100),
+          consignment_number VARCHAR(100),
+          package_type VARCHAR(50),
+          weight DECIMAL(10,2),
+          weight_unit VARCHAR(10) DEFAULT 'kg',
+          number_of_boxes INTEGER DEFAULT 1,
+          gross_amount DECIMAL(10,2) DEFAULT 0,
+          other_charges DECIMAL(10,2) DEFAULT 0,
+          insurance_amount DECIMAL(10,2) DEFAULT 0,
+          parcel_value DECIMAL(10,2) DEFAULT 0,
+          net_amount DECIMAL(10,2) DEFAULT 0,
+          remarks TEXT,
+          status VARCHAR(50) DEFAULT 'pending',
+          created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+    } else {
+      // Add new columns to existing table
+      console.log('Adding new columns to account_bookings if missing...');
+      await client.query(`
+        ALTER TABLE account_bookings 
+        ADD COLUMN IF NOT EXISTS center VARCHAR(255),
+        ADD COLUMN IF NOT EXISTS consignment_number VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS weight_unit VARCHAR(10) DEFAULT 'kg'
+            `);
+    }
+
+    // Create cash_bookings table (standard for walk-in/cash customers)
+    console.log('Creating cash_bookings table...');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS cash_bookings(
+              id SERIAL PRIMARY KEY,
+              date DATE NOT NULL,
+              sender VARCHAR(255) NOT NULL,
+              sender_mobile VARCHAR(20),
+              sender_address TEXT,
+              center VARCHAR(255),
+              receiver VARCHAR(255) NOT NULL,
+              receiver_mobile VARCHAR(20),
+              receiver_address TEXT,
+              carrier VARCHAR(255),
+              reference_number VARCHAR(255),
+              package_type VARCHAR(100),
+              weight DECIMAL(10, 2),
+              number_of_boxes INTEGER,
+              gross_amount DECIMAL(10, 2),
+              fuel_charge_percent DECIMAL(5, 2),
+              insurance_amount DECIMAL(10, 2),
+              cgst_amount DECIMAL(10, 2),
+              sgst_amount DECIMAL(10, 2),
+              net_amount DECIMAL(10, 2),
+              parcel_value DECIMAL(10, 2),
+              weight_unit VARCHAR(10) DEFAULT 'kg',
+              remarks TEXT,
+              created_by INTEGER,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+    // Create offline_bookings table for offline bookings with status (updated schema)
+    console.log('Creating offline_bookings table...');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS offline_bookings(
+          id SERIAL PRIMARY KEY,
+          booking_date DATE NOT NULL,
+          sender VARCHAR(255) NOT NULL,
+          center VARCHAR(255),
+          receiver VARCHAR(255) NOT NULL,
+          mobile VARCHAR(20),
+          carrier VARCHAR(255),
+          reference_number VARCHAR(100),
+          package_type VARCHAR(50),
+          weight DECIMAL(10, 2),
+          number_of_boxes INTEGER DEFAULT 1,
+          gross_amount DECIMAL(10, 2) DEFAULT 0,
+          other_charges DECIMAL(10, 2) DEFAULT 0,
+          insurance_amount DECIMAL(10, 2) DEFAULT 0,
+          parcel_value DECIMAL(10, 2) DEFAULT 0,
+          net_amount DECIMAL(10, 2) DEFAULT 0,
+          remarks TEXT,
+          status VARCHAR(50) DEFAULT 'PENDING',
+          created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        `);
+
+    // Migrate existing offline_bookings table to new schema if needed
+    console.log('Migrating offline_bookings table schema if needed...');
+
+    // Check if old schema exists and migrate
+    const offlineOldSchemaCheck = await client.query(`
+      SELECT column_name FROM information_schema.columns 
+      WHERE table_name = 'offline_bookings' AND column_name = 'sender_name'
+        `);
+
+    if (offlineOldSchemaCheck.rows.length > 0) {
+      console.log('Found old offline_bookings schema, migrating to new schema...');
+      // Drop old table and recreate with new schema
+      await client.query(`DROP TABLE IF EXISTS offline_bookings CASCADE`);
+      await client.query(`
+        CREATE TABLE offline_bookings(
+          id SERIAL PRIMARY KEY,
+          booking_date DATE NOT NULL,
+          sender VARCHAR(255) NOT NULL,
+          center VARCHAR(255),
+          receiver VARCHAR(255) NOT NULL,
+          mobile VARCHAR(20),
+          carrier VARCHAR(255),
+          reference_number VARCHAR(100),
+          package_type VARCHAR(50),
+          weight DECIMAL(10, 2),
+          number_of_boxes INTEGER DEFAULT 1,
+          gross_amount DECIMAL(10, 2) DEFAULT 0,
+          other_charges DECIMAL(10, 2) DEFAULT 0,
+          insurance_amount DECIMAL(10, 2) DEFAULT 0,
+          parcel_value DECIMAL(10, 2) DEFAULT 0,
+          net_amount DECIMAL(10, 2) DEFAULT 0,
+          remarks TEXT,
+          status VARCHAR(50) DEFAULT 'PENDING',
+          created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        `);
+    } else {
+      // Add center column if it doesn't exist (for existing tables with new schema)
+      await client.query(`
+        ALTER TABLE offline_bookings 
+        ADD COLUMN IF NOT EXISTS center VARCHAR(255)
+        `);
+    }
+
+    // Create party_payments table for payment tracking
+    console.log('Creating party_payments table...');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS party_payments(
+          id SERIAL PRIMARY KEY,
+          party_id INTEGER NOT NULL REFERENCES parties(id) ON DELETE CASCADE,
+          payment_date DATE NOT NULL,
+          amount DECIMAL(12, 2) NOT NULL,
+          tds_deduct DECIMAL(12, 2) DEFAULT 0,
+          discount DECIMAL(12, 2) DEFAULT 0,
+          description TEXT,
+          selected_bills JSONB,
+          created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    console.log('Altering party_payments table to add new columns...');
+    await client.query(`ALTER TABLE party_payments ADD COLUMN IF NOT EXISTS tds_deduct DECIMAL(12, 2) DEFAULT 0`);
+    await client.query(`ALTER TABLE party_payments ADD COLUMN IF NOT EXISTS discount DECIMAL(12, 2) DEFAULT 0`);
+    await client.query(`ALTER TABLE party_payments ADD COLUMN IF NOT EXISTS description TEXT`);
+    await client.query(`ALTER TABLE party_payments ADD COLUMN IF NOT EXISTS selected_bills JSONB`);
+
+    // Optional: Drop old columns if they are no longer needed
+    await client.query(`ALTER TABLE party_payments DROP COLUMN IF EXISTS payment_method`);
+    await client.query(`ALTER TABLE party_payments DROP COLUMN IF EXISTS reference_no`);
+    await client.query(`ALTER TABLE party_payments DROP COLUMN IF EXISTS notes`);
+    await client.query(`ALTER TABLE party_payments DROP COLUMN IF EXISTS allocations`);
+
+    // Create bills table for bill generation and tracking
+    console.log('Creating bills table...');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS bills(
+          id SERIAL PRIMARY KEY,
+          party_id INTEGER NOT NULL REFERENCES parties(id) ON DELETE CASCADE,
+          bill_number VARCHAR(100) NOT NULL UNIQUE,
+          bill_date DATE NOT NULL,
+          base_amount DECIMAL(12, 2) NOT NULL DEFAULT 0,
+          service_charges DECIMAL(12, 2) DEFAULT 0,
+          fuel_charges DECIMAL(12, 2) DEFAULT 0,
+          other_charges DECIMAL(12, 2) DEFAULT 0,
+          cgst_amount DECIMAL(12, 2) DEFAULT 0,
+          sgst_amount DECIMAL(12, 2) DEFAULT 0,
+          igst_amount DECIMAL(12, 2) DEFAULT 0,
+          total_amount DECIMAL(12, 2) NOT NULL,
+          template VARCHAR(50) DEFAULT 'Default',
+          email_sent BOOLEAN DEFAULT FALSE,
+          status VARCHAR(50) DEFAULT 'generated',
+          pdf_path TEXT,
+          bill_type VARCHAR(50) DEFAULT 'monthly',
+          created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    // Ensure bill_type column exists
+    await client.query(`ALTER TABLE bills ADD COLUMN IF NOT EXISTS bill_type VARCHAR(50) DEFAULT 'monthly'`);
+
+    // Create barcodes table for barcode management
+    console.log('Creating barcodes table...');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS barcodes(
+          id SERIAL PRIMARY KEY,
+          carrier VARCHAR(255) NOT NULL,
+          barcode_range VARCHAR(255) NOT NULL,
+          start_range VARCHAR(50),
+          end_range VARCHAR(50),
+          available_count INTEGER DEFAULT 2,
+          created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+
+    // Create indexes for booking tables (after tables are created)
+    console.log('Creating indexes for booking tables...');
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_centers_city ON centers(city)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_centers_region ON centers(region_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_receivers_name ON receivers(name)`);
+
+    // Check if account_bookings table has the new schema before creating indexes
+    const senderColumnCheck = await client.query(`
+      SELECT column_name FROM information_schema.columns 
+      WHERE table_name = 'account_bookings' AND column_name = 'sender'
+        `);
+
+    if (senderColumnCheck.rows.length > 0) {
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_account_bookings_sender ON account_bookings(sender)`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_account_bookings_receiver ON account_bookings(receiver)`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_account_bookings_reference ON account_bookings(reference_number)`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_account_bookings_date ON account_bookings(booking_date)`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_account_bookings_status ON account_bookings(status)`);
+    }
+
+    // Check if offline_bookings table has the new schema before creating indexes
+    const offlineSenderCheck = await client.query(`
+      SELECT column_name FROM information_schema.columns 
+      WHERE table_name = 'offline_bookings' AND column_name = 'sender'
+        `);
+
+    if (offlineSenderCheck.rows.length > 0) {
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_offline_bookings_sender ON offline_bookings(sender)`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_offline_bookings_receiver ON offline_bookings(receiver)`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_offline_bookings_reference ON offline_bookings(reference_number)`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_offline_bookings_status ON offline_bookings(status)`);
+    }
+
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_party_payments_party ON party_payments(party_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_party_payments_date ON party_payments(payment_date)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_bills_party ON bills(party_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_bills_date ON bills(bill_date)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_bills_number ON bills(bill_number)`);
+
+    // Seeds
+    console.log('Seeding regions...');
+
+    // Use a safer approach to insert regions
+    try {
+      await client.query(`
+        INSERT INTO regions(code, name) VALUES
+        ('MUM', 'Mumbai'), ('ROI', 'Rest of India'), ('METRO', 'Metro'), ('GJ', 'Gujarat'), ('MP', 'Madhya Pradesh'), ('NE', 'North East')
+        ON CONFLICT DO NOTHING;
+      `);
+    } catch (error) {
+      // If the above fails due to multiple unique constraints, insert one by one
+      console.log('Bulk insert failed, inserting regions individually...');
+      const regions = [
+        ['MUM', 'Mumbai'],
+        ['ROI', 'Rest of India'],
+        ['METRO', 'Metro'],
+        ['GJ', 'Gujarat'],
+        ['MP', 'Madhya Pradesh'],
+        ['NE', 'North East']
+      ];
+
+      for (const [code, name] of regions) {
+        try {
+          await client.query(`
+            INSERT INTO regions(code, name) VALUES($1, $2)
+            ON CONFLICT DO NOTHING
+          `, [code, name]);
+        } catch (err) {
+          // Ignore individual insert errors (likely duplicates)
+          console.log(`Skipping region ${code} - ${name} (already exists)`);
+        }
+      }
+    }
+    await client.query(`
+      INSERT INTO carriers(name, is_active) VALUES
+        ('Professional Courier', TRUE), ('DTDC', TRUE), ('Blue Dart', TRUE)
+      ON CONFLICT(name) DO NOTHING;
+      `);
+
+
+    // Seed some sample barcodes
+    console.log('Seeding barcodes...');
+    try {
+      await client.query(`
+        INSERT INTO barcodes(carrier, barcode_range, start_range, end_range, available_count) VALUES
+        ('PROFESSIONAL COURIER', 'VP6803033 - VP6503086', 'VP6803033', 'VP6503086', 2)
+        `);
+    } catch (error) {
+      console.log('Barcode already exists, skipping...');
+    }
 
     console.log('Checking for default admin user...');
     const adminExists = await client.query('SELECT id FROM users WHERE username = $1', ['admin']);

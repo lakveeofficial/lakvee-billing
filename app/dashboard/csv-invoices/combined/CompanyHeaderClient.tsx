@@ -62,7 +62,7 @@ export default function CompanyHeaderClient() {
         {hasAnyText ? (
           <div>
             <div className="text-xl font-bold">{name || 'Company'}</div>
-            <div className="text-xs text-gray-600">
+            <div className="text-xs text-slate-600">
               {address1 ? <div>{address1}</div> : null}
               {(city || state || pin) ? (
                 <div>{[city, state, pin].filter(Boolean).join(', ')}</div>

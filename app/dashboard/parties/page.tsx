@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  Edit, 
-  Trash2, 
+import {
+  Plus,
+  Search,
+  Filter,
+  Edit,
+  Trash2,
   Download,
   Upload,
   Eye,
@@ -22,6 +22,7 @@ import {
   StickyNote
 } from 'lucide-react'
 import { Party, PartyFilters, GST_TYPES, INDIAN_STATES } from '@/types/party'
+import { getCityName } from '@/lib/indiaData'
 import PageHeader from '@/components/PageHeader'
 import ModalShell from '@/components/ModalShell'
 
@@ -40,7 +41,7 @@ export default function PartiesPage() {
   const [paymentSaving, setPaymentSaving] = useState(false)
   const [paymentPartyId, setPaymentPartyId] = useState<string | null>(null)
   const [paymentPartyName, setPaymentPartyName] = useState<string>('')
-  const [paymentDate, setPaymentDate] = useState<string>(() => new Date().toISOString().slice(0,10))
+  const [paymentDate, setPaymentDate] = useState<string>(() => new Date().toISOString().slice(0, 10))
   const [paymentAmount, setPaymentAmount] = useState<string>('')
   const [paymentMethod, setPaymentMethod] = useState<string>('')
   const [paymentRef, setPaymentRef] = useState<string>('')
@@ -58,7 +59,7 @@ export default function PartiesPage() {
   const openPaymentModal = (party: Party) => {
     setPaymentPartyId(String(party.id))
     setPaymentPartyName(party.partyName)
-    setPaymentDate(new Date().toISOString().slice(0,10))
+    setPaymentDate(new Date().toISOString().slice(0, 10))
     setPaymentAmount('')
     setPaymentMethod('')
     setPaymentRef('')
@@ -93,12 +94,12 @@ export default function PartiesPage() {
         })
       })
       if (!res.ok) {
-        const j = await res.json().catch(()=>({}))
+        const j = await res.json().catch(() => ({}))
         throw new Error(j.error || `Failed to save: ${res.status}`)
       }
       setPaymentModalOpen(false)
       alert('Payment saved')
-    } catch (e:any) {
+    } catch (e: any) {
       alert(e?.message || 'Failed to save payment')
     } finally {
       setPaymentSaving(false)
@@ -169,11 +170,11 @@ export default function PartiesPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      const res = await fetch(`/api/parties/${id}`, { 
+      const res = await fetch(`/api/parties/${id}`, {
         method: 'DELETE',
         credentials: 'include', // Include cookies for authentication
       });
-      
+
       if (res.ok) {
         alert('Party deleted successfully!');
         loadParties(); // Reload the list
@@ -226,11 +227,11 @@ export default function PartiesPage() {
       party.gstin || '',
       (party as any).panNumber || '',
       party.billingAddress?.street || '',
-      party.billingAddress?.city || '',
+      getCityName(party.billingAddress?.city || ''),
       party.billingAddress?.state || '',
       party.billingAddress?.pincode || '',
       party.shippingAddress?.street || '',
-      party.shippingAddress?.city || '',
+      getCityName(party.shippingAddress?.city || ''),
       party.shippingAddress?.state || '',
       party.shippingAddress?.pincode || '',
       String(party.useShippingAddress ?? false),
@@ -316,19 +317,19 @@ export default function PartiesPage() {
       />
 
       {/* Search and Filters */}
-      <div className="bg-white rounded-lg shadow mb-6">
-        <div className="p-4 border-b border-gray-200">
+      <div className="bg-white rounded-xl shadow mb-6">
+        <div className="p-4 border-b border-slate-200">
           <div className="flex flex-col sm:flex-row gap-4">
             {/* Search */}
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input
                   type="text"
                   placeholder="Search parties by name, phone, email, or GSTIN..."
                   value={filters.search}
                   onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 />
               </div>
             </div>
@@ -336,7 +337,7 @@ export default function PartiesPage() {
             {/* Filter Toggle */}
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+              className="flex items-center px-4 py-2 border border-slate-300 rounded-md text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 transition-colors"
             >
               <Filter className="h-4 w-4 mr-2" />
               Filters
@@ -345,7 +346,7 @@ export default function PartiesPage() {
             {/* Export */}
             <button
               onClick={handleExport}
-              className="flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+              className="flex items-center px-4 py-2 border border-slate-300 rounded-md text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 transition-colors"
             >
               <Download className="h-4 w-4 mr-2" />
               Export
@@ -355,16 +356,16 @@ export default function PartiesPage() {
 
         {/* Advanced Filters */}
         {showFilters && (
-          <div className="p-4 bg-gray-50 border-b border-gray-200">
+          <div className="p-4 bg-slate-50 border-b border-slate-200">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   GST Type
                 </label>
                 <select
                   value={filters.gstType}
                   onChange={(e) => setFilters(prev => ({ ...prev, gstType: e.target.value as any }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 >
                   <option value="all">All GST Types</option>
                   {GST_TYPES.map(type => (
@@ -375,13 +376,13 @@ export default function PartiesPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   State
                 </label>
                 <select
                   value={filters.state}
                   onChange={(e) => setFilters(prev => ({ ...prev, state: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 >
                   <option value="all">All States</option>
                   {INDIAN_STATES.map(state => (
@@ -396,20 +397,20 @@ export default function PartiesPage() {
         )}
 
         {/* Results Count */}
-        <div className="px-4 py-2 bg-gray-50 text-sm text-gray-600">
+        <div className="px-4 py-2 bg-slate-50 text-sm text-slate-600">
           Showing {filteredParties.length} of {parties.length} parties
         </div>
       </div>
 
       {/* Parties List */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded-xl shadow overflow-hidden">
         {filteredParties.length === 0 ? (
           <div className="p-8 text-center">
-            <div className="text-gray-400 mb-4">
+            <div className="text-slate-400 mb-4">
               <Users className="h-12 w-12 mx-auto" />
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No parties found</h3>
-            <p className="text-gray-600 mb-4">
+            <h3 className="text-lg font-medium text-slate-900 mb-2">No parties found</h3>
+            <p className="text-slate-600 mb-4">
               {filters.search || filters.gstType !== 'all' || filters.state !== 'all'
                 ? 'Try adjusting your search criteria or filters.'
                 : 'Get started by adding your first party.'}
@@ -425,29 +426,29 @@ export default function PartiesPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-slate-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                     Party Details
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Contact</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                     GST Info
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredParties.map((party) => (
-                  <tr key={party.id} className="hover:bg-gray-50">
+                  <tr key={party.id} className="hover:bg-slate-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-sm font-medium text-slate-900">
                           {party.partyName}
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-sm text-slate-500">
                           ID: {party.id}
                         </div>
                         <div className="mt-2">
@@ -465,17 +466,17 @@ export default function PartiesPage() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="space-y-1">
                         {(party as any).contactPerson && (
-                          <div className="text-sm text-gray-900">
+                          <div className="text-sm text-slate-900">
                             {(party as any).contactPerson}
                           </div>
                         )}
-                        <div className="flex items-center text-sm text-gray-900">
-                          <Phone className="h-3 w-3 mr-1 text-gray-400" />
+                        <div className="flex items-center text-sm text-slate-900">
+                          <Phone className="h-3 w-3 mr-1 text-slate-400" />
                           {party.phoneNumber}
                         </div>
                         {party.email && (
-                          <div className="flex items-center text-sm text-gray-500">
-                            <Mail className="h-3 w-3 mr-1 text-gray-400" />
+                          <div className="flex items-center text-sm text-slate-500">
+                            <Mail className="h-3 w-3 mr-1 text-slate-400" />
                             {party.email}
                           </div>
                         )}
@@ -483,14 +484,14 @@ export default function PartiesPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <div className="text-sm text-gray-900 capitalize">
+                        <div className="text-sm text-slate-900 capitalize">
                           {party.gstType ? party.gstType.replace('_', ' ') : 'N/A'}
                         </div>
-                        <div className="text-sm text-gray-500 font-mono">
+                        <div className="text-sm text-slate-500 font-mono">
                           {party.gstin || '—'}
                         </div>
                         {(party as any).panNumber && (
-                          <div className="text-xs text-gray-500 font-mono">PAN: {(party as any).panNumber}</div>
+                          <div className="text-xs text-slate-500 font-mono">PAN: {(party as any).panNumber}</div>
                         )}
                       </div>
                     </td>
@@ -498,7 +499,7 @@ export default function PartiesPage() {
                       <div className="flex items-center justify-end space-x-2">
                         <button
                           onClick={() => router.push(`/dashboard/parties/${party.id}`)}
-                          className="text-gray-600 hover:text-gray-900 p-1"
+                          className="text-slate-600 hover:text-slate-900 p-1"
                           title="View Details"
                         >
                           <Eye className="h-4 w-4" />
@@ -510,7 +511,7 @@ export default function PartiesPage() {
                         >
                           <Layers className="h-4 w-4" />
                         </button>
-                        
+
                         <button
                           onClick={() => router.push(`/dashboard/parties/${party.id}/edit`)}
                           className="text-indigo-600 hover:text-indigo-900 p-1"
@@ -547,7 +548,7 @@ export default function PartiesPage() {
           size="md"
           footer={(
             <>
-              <button className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50" onClick={() => setPaymentModalOpen(false)} disabled={paymentSaving}>Cancel</button>
+              <button className="px-4 py-2 rounded-md border border-slate-300 text-slate-700 hover:bg-slate-50" onClick={() => setPaymentModalOpen(false)} disabled={paymentSaving}>Cancel</button>
               <button className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-white bg-gradient-to-r from-primary-600 to-emerald-600 hover:from-primary-700 hover:to-emerald-700 disabled:opacity-60" onClick={savePartyPayment} disabled={paymentSaving}>
                 <IndianRupee className="h-4 w-4" />
                 {paymentSaving ? 'Saving…' : 'Save Payment'}
@@ -555,41 +556,41 @@ export default function PartiesPage() {
             </>
           )}
         >
-          <div className="mb-3 text-xs text-gray-600">Party: <span className="font-medium">{paymentPartyName}</span></div>
+          <div className="mb-3 text-xs text-slate-600">Party: <span className="font-medium">{paymentPartyName}</span></div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-gray-700 mb-1">Date</label>
+              <label className="block text-sm text-slate-700 mb-1">Date</label>
               <div className="relative">
-                <Calendar className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input type="date" className="w-full border rounded-md pl-9 pr-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" value={paymentDate} onChange={(e)=>setPaymentDate(e.target.value)} />
+                <Calendar className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input type="date" className="w-full border rounded-md pl-9 pr-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} />
               </div>
             </div>
             <div>
-              <label className="block text-sm text-gray-700 mb-1">Amount</label>
+              <label className="block text-sm text-slate-700 mb-1">Amount</label>
               <div className="relative">
-                <IndianRupee className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input type="number" min="0" step="0.01" className="w-full border rounded-md pl-9 pr-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" value={paymentAmount} onChange={(e)=>setPaymentAmount(e.target.value)} />
+                <IndianRupee className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input type="number" min="0" step="0.01" className="w-full border rounded-md pl-9 pr-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} />
               </div>
             </div>
             <div>
-              <label className="block text-sm text-gray-700 mb-1">Method</label>
+              <label className="block text-sm text-slate-700 mb-1">Method</label>
               <div className="relative">
-                <CreditCard className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input type="text" className="w-full border rounded-md pl-9 pr-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" value={paymentMethod} onChange={(e)=>setPaymentMethod(e.target.value)} placeholder="NEFT / UPI / CASH" />
+                <CreditCard className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input type="text" className="w-full border rounded-md pl-9 pr-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} placeholder="NEFT / UPI / CASH" />
               </div>
             </div>
             <div>
-              <label className="block text-sm text-gray-700 mb-1">Reference No</label>
+              <label className="block text-sm text-slate-700 mb-1">Reference No</label>
               <div className="relative">
-                <Hash className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input type="text" className="w-full border rounded-md pl-9 pr-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" value={paymentRef} onChange={(e)=>setPaymentRef(e.target.value)} />
+                <Hash className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input type="text" className="w-full border rounded-md pl-9 pr-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" value={paymentRef} onChange={(e) => setPaymentRef(e.target.value)} />
               </div>
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm text-gray-700 mb-1">Notes</label>
+              <label className="block text-sm text-slate-700 mb-1">Notes</label>
               <div className="relative">
-                <StickyNote className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input type="text" className="w-full border rounded-md pl-9 pr-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" value={paymentNotes} onChange={(e)=>setPaymentNotes(e.target.value)} placeholder="Optional" />
+                <StickyNote className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input type="text" className="w-full border rounded-md pl-9 pr-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" value={paymentNotes} onChange={(e) => setPaymentNotes(e.target.value)} placeholder="Optional" />
               </div>
             </div>
           </div>

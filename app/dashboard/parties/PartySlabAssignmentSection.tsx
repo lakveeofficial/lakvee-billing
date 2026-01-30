@@ -64,14 +64,14 @@ export default function PartySlabAssignmentSection({ value, onChange }: Props) {
   const noDistanceCategories = distanceCategories.length === 0;
 
   return (
-    <div className="bg-white rounded-lg shadow p-6 mt-8">
-      <h3 className="text-lg font-medium text-gray-900 mb-4">Rate Slab Assignment</h3>
+    <div className="bg-white rounded-xl shadow p-6 mt-8">
+      <h3 className="text-lg font-medium text-slate-900 mb-4">Rate Slab Assignment</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Weight Slab */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Weight Slab</label>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Weight Slab</label>
           <select
-            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            className="w-full px-3 py-2 border border-slate-300 rounded-md"
             value={value.weightSlabId || ""}
             onChange={e => onChange({ ...value, weightSlabId: e.target.value })}
             disabled={noWeightSlabs}
@@ -89,9 +89,9 @@ export default function PartySlabAssignmentSection({ value, onChange }: Props) {
         </div>
         {/* Volume Slab */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Volume Slab</label>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Volume Slab</label>
           <select
-            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            className="w-full px-3 py-2 border border-slate-300 rounded-md"
             value={value.volumeSlabId || ""}
             onChange={e => onChange({ ...value, volumeSlabId: e.target.value })}
             disabled={noVolumeSlabs}
@@ -109,9 +109,9 @@ export default function PartySlabAssignmentSection({ value, onChange }: Props) {
         </div>
         {/* COD Slab */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">COD Value Slab</label>
+          <label className="block text-sm font-medium text-slate-700 mb-2">COD Value Slab</label>
           <select
-            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            className="w-full px-3 py-2 border border-slate-300 rounded-md"
             value={value.codSlabId || ""}
             onChange={e => onChange({ ...value, codSlabId: e.target.value })}
             disabled={noCodSlabs}
@@ -129,10 +129,10 @@ export default function PartySlabAssignmentSection({ value, onChange }: Props) {
         </div>
         {/* Distance Slab + Category */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Distance Slab & Category</label>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Distance Slab & Category</label>
           <div className="flex gap-2">
             <select
-              className="w-1/2 px-3 py-2 border border-gray-300 rounded-md"
+              className="w-1/2 px-3 py-2 border border-slate-300 rounded-md"
               value={value.distanceSlabId || ""}
               onChange={e => onChange({ ...value, distanceSlabId: e.target.value })}
               disabled={noDistanceSlabs}
@@ -145,7 +145,7 @@ export default function PartySlabAssignmentSection({ value, onChange }: Props) {
               ))}
             </select>
             <select
-              className="w-1/2 px-3 py-2 border border-gray-300 rounded-md"
+              className="w-1/2 px-3 py-2 border border-slate-300 rounded-md"
               value={value.distanceCategory || ""}
               onChange={e => onChange({ ...value, distanceCategory: e.target.value as SlabDistanceCategory })}
               disabled={noDistanceCategories}

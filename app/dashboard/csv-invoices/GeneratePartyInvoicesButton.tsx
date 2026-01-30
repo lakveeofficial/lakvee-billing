@@ -50,7 +50,7 @@ export default function GeneratePartyInvoicesButton({ party }: { party: string }
       type="button"
       onClick={onClick}
       disabled={loading || isPending}
-      className="px-3 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
+      className="px-3 py-2 text-sm bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50"
       title="Generate party-wise combined invoice(s)"
     >
       {loading || isPending ? 'Generating…' : (party ? `Generate for "${party}"` : 'Generate Party-wise Invoices')}

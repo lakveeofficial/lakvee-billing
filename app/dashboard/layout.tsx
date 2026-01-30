@@ -4,21 +4,28 @@ import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Poppins } from 'next/font/google'
-import { 
-  Menu, 
-  X, 
-  Home, 
-  Users, 
-  FileText, 
-  List, 
-  BarChart3, 
-  Upload, 
+import { Montserrat } from 'next/font/google'
+import {
+  Home,
+  Package,
+  Calculator,
+  Receipt,
+  Calendar,
+  BarChart3,
   Settings,
+  Menu,
+  X,
+  Bell,
+  User,
   LogOut,
+  ChevronDown,
+  List,
+  QrCode,
+  Users,
+  LayoutDashboard,
   Building2,
-  LayoutDashboard, 
-  Receipt
+  FileText,
+  UserCircle
 } from 'lucide-react'
 
 interface User {
@@ -28,7 +35,7 @@ interface User {
   role: string;
 }
 
-const brandFont = Poppins({ subsets: ['latin'], weight: ['700'] })
+const brandFont = Montserrat({ subsets: ['latin'], weight: ['600', '700'] })
 
 export default function DashboardLayout({
   children,
@@ -36,6 +43,7 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
   const [user, setUser] = useState<User | null>(null)
   const router = useRouter()
 
@@ -48,6 +56,21 @@ export default function DashboardLayout({
     }
   }, [router])
 
+  // Close profile dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element
+      if (profileDropdownOpen && !target.closest('.profile-dropdown')) {
+        setProfileDropdownOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [profileDropdownOpen])
+
   const handleLogout = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
@@ -55,24 +78,35 @@ export default function DashboardLayout({
   }
 
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, current: false },
-    { name: 'Company Management', href: '/dashboard/companies', icon: Building2, current: false },
-    { name: 'Party Management', href: '/dashboard/parties', icon: Users, current: false },
-    // Rates masters remain admin-only (root level)
+    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Companies', href: '/dashboard/companies', icon: Building2 },
+    {
+      name: 'Parties', href: '#', icon: Users, children: [
+        { name: 'Party', href: '/dashboard/clients', icon: Users },
+        { name: 'Party Quotations', href: '/dashboard/parties/quotations', icon: FileText },
+      ]
+    },
+    {
+      name: 'Booking', href: '#', icon: List, children: [
+        { name: 'Cash Booking', href: '/dashboard/bookings/cash', icon: List },
+        { name: 'Account Booking', href: '/dashboard/bookings/account', icon: List },
+      ]
+    },
+    {
+      name: 'Accounts', href: '#', icon: Calculator, children: [
+        { name: 'Bills', href: '/dashboard/accounts/bills', icon: Receipt },
+        { name: 'Period Bills', href: '/dashboard/accounts/period-bills', icon: Calendar },
+        { name: 'Bills History', href: '/dashboard/accounts/bills-history', icon: FileText },
+      ]
+    },
     ...(user?.role === 'admin' ? [
-      { name: 'Rate Masters', href: '/dashboard/rates/masters', icon: Settings, current: false },
+      { name: 'Setup', href: '/dashboard/setup', icon: Settings },
     ] : []),
-    { name: 'Sales Invoice', href: '/dashboard/invoices/new', icon: Receipt, current: false },
-    { name: 'Sales List', href: '/dashboard/invoices', icon: FileText, current: false },
-    { name: 'CSV Invoices', href: '/dashboard/csv-invoices', icon: FileText, current: false },
-    { name: 'Reports', href: '/dashboard/reports', icon: BarChart3, current: false },
-    { name: 'CSV Upload', href: '/dashboard/upload', icon: Upload, current: false },
+    { name: 'Reports', href: '/dashboard/reports', icon: BarChart3 },
   ];
 
-  // Filter navigation based on user type
-  const filteredNavigation = (user?.role === 'billing_operator')
-    ? navigation.filter(item => !['CSV Upload', 'CSV Invoices', 'Rate Masters'].includes(item.name))
-    : navigation
+  // All users see the same simplified navigation
+  const filteredNavigation = navigation
 
   if (!user) {
     return (
@@ -83,8 +117,127 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="h-screen flex overflow-hidden bg-gray-100">
-      {/* Mobile sidebar */}
+    <div className="min-h-screen bg-slate-100">
+      {/* Header Navigation */}
+      <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
+        <div className="mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            {/* Logo */}
+            <Link href="/dashboard" className="flex items-center gap-3 group" aria-label="Billing System Home">
+              <div className="relative flex items-center justify-center" style={{ minWidth: '48px', minHeight: '48px' }}>
+                <div className="absolute inset-0 bg-primary-100 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <img
+                  src="/lakvee-logo2.png"
+                  alt="LakVee Logo"
+                  width="48"
+                  height="48"
+                  style={{ width: '48px', height: '48px', minWidth: '48px', objectFit: 'contain' }}
+                  className="relative z-10 transition-transform group-hover:scale-110"
+                />
+              </div>
+              <span className={`text-slate-900 font-bold text-xl tracking-tight whitespace-nowrap ${brandFont.className}`}>Billing System</span>
+            </Link>
+
+            {/* Desktop Navigation */}
+            <nav className="hidden lg:flex items-center space-x-1">
+              {filteredNavigation.map((item) => (
+                <div key={item.name} className="relative group">
+                  <a
+                    href={item.href}
+                    className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-primary-700 hover:bg-primary-50 transition-all duration-200 flex items-center gap-2 border border-transparent hover:border-primary-200"
+                  >
+                    <item.icon className="h-4 w-4" />
+                    <span className="whitespace-nowrap">{item.name}</span>
+                    {Array.isArray(item.children) && item.children.length > 0 && (
+                      <svg className="h-3 w-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    )}
+                  </a>
+                  {Array.isArray(item.children) && item.children.length > 0 && (
+                    <div className="absolute left-0 top-full mt-1 w-52 bg-white rounded-xl shadow-xl border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                      <div className="py-2">
+                        {item.children.map((child: any) => (
+                          <a
+                            key={child.name}
+                            href={child.href}
+                            className="block px-4 py-3 text-sm text-slate-700 hover:bg-primary-50 hover:text-primary-700 transition-colors duration-150 flex items-center gap-3"
+                          >
+                            <child.icon className="h-4 w-4 text-slate-400" />
+                            <span>{child.name}</span>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </nav>
+
+            {/* User Menu & Mobile Menu Button */}
+            <div className="flex items-center gap-3">
+              {/* Profile Dropdown */}
+              <div className="hidden lg:block relative profile-dropdown">
+                <button
+                  onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                  className="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-600 hover:text-primary-700 hover:bg-primary-50 transition-all duration-200 border border-transparent hover:border-primary-200"
+                >
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-slate-900">{user.username}</p>
+                    <p className="text-xs text-slate-500 capitalize">{user.role.replace('_', ' ')}</p>
+                  </div>
+                  <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
+                    <span className="text-sm font-medium text-primary-700">
+                      {user.username.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+
+                {/* Profile Dropdown Menu */}
+                {profileDropdownOpen && (
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-xl border border-gray-100 z-50">
+                    <div className="py-2">
+                      <button
+                        onClick={() => {
+                          setProfileDropdownOpen(false)
+                          // TODO: Navigate to edit profile page
+                          console.log('Edit Profile clicked')
+                        }}
+                        className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-primary-50 hover:text-primary-700 transition-colors duration-150 flex items-center gap-3"
+                      >
+                        <UserCircle className="h-4 w-4 text-slate-400" />
+                        <span>Edit Profile</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setProfileDropdownOpen(false)
+                          handleLogout()
+                        }}
+                        className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-red-50 hover:text-red-600 transition-colors duration-150 flex items-center gap-3"
+                      >
+                        <LogOut className="h-4 w-4 text-slate-400" />
+                        <span>Sign out</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Mobile menu button */}
+              <button
+                type="button"
+                className="lg:hidden inline-flex items-center justify-center p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors duration-200"
+                onClick={() => setSidebarOpen(true)}
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Mobile sidebar overlay */}
       <div className={`fixed inset-0 flex z-40 md:hidden ${sidebarOpen ? '' : 'hidden'}`}>
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
         <div className="relative flex-1 flex flex-col max-w-xs w-full bg-white">
@@ -97,66 +250,57 @@ export default function DashboardLayout({
               <X className="h-6 w-6 text-white" />
             </button>
           </div>
-          <SidebarContent navigation={filteredNavigation} user={user} onLogout={handleLogout} />
-        </div>
-      </div>
-
-      {/* Static sidebar for desktop */}
-      <div className="hidden md:flex md:flex-shrink-0">
-        <div className="flex flex-col w-64">
-          <SidebarContent navigation={filteredNavigation} user={user} onLogout={handleLogout} />
+          <MobileSidebarContent navigation={filteredNavigation} user={user} onLogout={handleLogout} />
         </div>
       </div>
 
       {/* Main content */}
-      <div className="flex flex-col w-0 flex-1 overflow-hidden">
-        <div className="md:hidden pl-1 pt-1 sm:pl-3 sm:pt-3">
-          <button
-            type="button"
-            className="-ml-0.5 -mt-0.5 h-12 w-12 inline-flex items-center justify-center rounded-md text-gray-500 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <Menu className="h-6 w-6" />
-          </button>
-        </div>
-        <main className="flex-1 relative z-0 overflow-y-auto focus:outline-none">
-          {children}
-        </main>
-      </div>
+      <main className="flex-1">
+        {children}
+      </main>
     </div>
   )
 }
 
-function SidebarContent({ 
-  navigation, 
-  user, 
-  onLogout 
-}: { 
-  navigation: any[], 
-  user: User, 
-  onLogout: () => void 
+function MobileSidebarContent({
+  navigation,
+  user,
+  onLogout
+}: {
+  navigation: any[],
+  user: User,
+  onLogout: () => void
 }) {
   return (
-    <div className="flex flex-col h-full bg-white border-r border-gray-200">
+    <div className="flex flex-col h-full bg-white">
       {/* Logo */}
-      <div className="flex items-center h-16 flex-shrink-0 px-5 bg-primary-600">
-        <Link href="/dashboard" className="flex items-center gap-4 group" aria-label="Billing Portal Home">
-          <Image
-            src="/lakvee-logo.png"
-            alt="LakVee Logo"
-            width={48}
-            height={48}
-            className="rounded-md bg-white p-1.5 shadow"
-            priority
-          />
-          <span className={`text-white font-semibold text-xl tracking-wide whitespace-nowrap group-hover:opacity-95 ${brandFont.className}`}>Billing Portal</span>
+      <div className="flex items-center h-16 flex-shrink-0 px-5 bg-gradient-to-r from-primary-600 to-primary-700">
+        <Link href="/dashboard" className="flex items-center gap-3 group" aria-label="Billing System Home">
+          <div className="relative bg-white rounded-xl p-1 shadow-inner">
+            <img
+              src="/lakvee-logo2.png"
+              alt="LakVee Logo"
+              style={{ width: '40px', height: '40px', objectFit: 'contain' }}
+              className="relative transition-transform group-hover:scale-105"
+            />
+          </div>
+          <span className={`text-white font-bold text-lg tracking-tight whitespace-nowrap group-hover:opacity-95 ${brandFont.className}`}>Billing System</span>
         </Link>
       </div>
 
       {/* User info */}
-      <div className="px-4 py-3 border-b border-gray-200">
-        <p className="text-sm font-medium text-gray-900">{user.username}</p>
-        <p className="text-xs text-gray-500 capitalize">{user.role.replace('_', ' ')}</p>
+      <div className="px-4 py-3 border-b border-slate-200">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
+            <span className="text-sm font-medium text-primary-700">
+              {user.username.charAt(0).toUpperCase()}
+            </span>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-900">{user.username}</p>
+            <p className="text-xs text-slate-500 capitalize">{user.role.replace('_', ' ')}</p>
+          </div>
+        </div>
       </div>
 
       {/* Navigation */}
@@ -165,29 +309,21 @@ function SidebarContent({
           <div key={item.name}>
             <a
               href={item.href}
-              className={`${
-                item.current
-                  ? 'bg-primary-100 text-primary-900'
-                  : 'text-gray-700'
-              } hover:bg-primary-900 hover:!text-white group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors duration-150`}
+              className="text-slate-700 hover:bg-primary-600 hover:text-white group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-150"
             >
-              <item.icon
-                className={`${
-                  item.current ? 'text-primary-500' : 'text-gray-400 group-hover:text-white'
-                } mr-3 flex-shrink-0 h-5 w-5`}
-              />
-              <span className="transition-colors group-hover:!text-white">{item.name}</span>
+              <item.icon className="text-slate-400 group-hover:text-white mr-3 flex-shrink-0 h-5 w-5" />
+              <span className="transition-colors group-hover:text-white">{item.name}</span>
             </a>
             {Array.isArray(item.children) && item.children.length > 0 && (
-              <div className="ml-7 mt-1 space-y-1">
+              <div className="ml-8 mt-1 space-y-1">
                 {item.children.map((child: any) => (
                   <a
                     key={child.name}
                     href={child.href}
-                    className="text-gray-700 hover:bg-primary-900 hover:!text-white group flex items-center px-2 py-1.5 text-sm rounded-md transition-colors duration-150"
+                    className="text-slate-600 hover:bg-primary-500 hover:text-white group flex items-center px-3 py-2 text-sm rounded-md transition-colors duration-150"
                   >
-                    <child.icon className="text-gray-400 group-hover:text-white mr-3 h-4 w-4 transition-colors duration-150" />
-                    <span className="transition-colors group-hover:!text-white">{child.name}</span>
+                    <child.icon className="text-slate-400 group-hover:text-white mr-3 h-4 w-4" />
+                    <span className="transition-colors group-hover:text-white">{child.name}</span>
                   </a>
                 ))}
               </div>
@@ -196,13 +332,23 @@ function SidebarContent({
         ))}
       </nav>
 
-      {/* Logout */}
-      <div className="flex-shrink-0 border-t border-gray-200 p-4">
+      {/* Profile Actions */}
+      <div className="flex-shrink-0 border-t border-slate-200 p-4 space-y-2">
+        <button
+          onClick={() => {
+            // TODO: Navigate to edit profile page
+            console.log('Edit Profile clicked')
+          }}
+          className="group flex items-center px-3 py-2 text-sm font-medium rounded-md text-slate-700 hover:bg-primary-600 hover:text-white w-full transition-colors duration-150"
+        >
+          <UserCircle className="text-slate-400 group-hover:text-white mr-3 flex-shrink-0 h-5 w-5" />
+          Edit Profile
+        </button>
         <button
           onClick={onLogout}
-          className="group flex items-center px-2 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-primary-900 hover:text-white w-full transition-colors duration-150"
+          className="group flex items-center px-3 py-2 text-sm font-medium rounded-md text-slate-700 hover:bg-red-600 hover:text-white w-full transition-colors duration-150"
         >
-          <LogOut className="text-gray-400 group-hover:text-white mr-3 flex-shrink-0 h-5 w-5 transition-colors duration-150" />
+          <LogOut className="text-slate-400 group-hover:text-white mr-3 flex-shrink-0 h-5 w-5" />
           Sign out
         </button>
       </div>

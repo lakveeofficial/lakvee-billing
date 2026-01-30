@@ -132,7 +132,7 @@ export const companySchema = z.object({
 // Query validation schemas
 export const paginationSchema = z.object({
   page: z.string().nullable().transform(val => val ? Number(val) : 1).pipe(z.number().min(1)),
-  limit: z.string().nullable().transform(val => val ? Number(val) : 10).pipe(z.number().min(1).max(100)),
+  limit: z.string().nullable().transform(val => val ? Number(val) : 10).pipe(z.number().min(1).max(1000)),
   search: z.string().nullable().optional(),
   sort: z.string().nullable().optional(),
   order: z.enum(['asc', 'desc']).nullable().transform(val => val || 'desc'),

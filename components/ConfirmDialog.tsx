@@ -36,7 +36,7 @@ export default function ConfirmDialog({
         <>
           <button
             onClick={onCancel}
-            className="px-4 py-2 text-sm rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+            className="px-4 py-2 text-sm rounded-md border border-slate-300 text-slate-700 hover:bg-slate-50"
           >
             {cancelText}
           </button>
@@ -52,7 +52,7 @@ export default function ConfirmDialog({
         </>
       )}
     >
-      {message && <p className="text-sm text-gray-700">{message}</p>}
+      {message && <p className="text-sm text-slate-700">{message}</p>}
     </ModalShell>
   )
 }

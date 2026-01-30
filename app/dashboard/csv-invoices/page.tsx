@@ -8,8 +8,6 @@ import PageHeader from '@/components/PageHeader'
 import { db } from '@/lib/db'
 // GeneratePartyInvoicesButton disabled per request
 // import GeneratePartyInvoicesButton from './GeneratePartyInvoicesButton'
-import ApplyRateButton from './ApplyRateButton'
-import GlobalApplyRatesButton from './GlobalApplyRatesButton'
 import GeneratePartyInvoiceButton from './GeneratePartyInvoiceButton'
 
 export default async function CsvInvoicesPage({ searchParams }: { searchParams: { page?: string; limit?: string; q?: string; party?: string; view?: string } }) {
@@ -90,23 +88,23 @@ export default async function CsvInvoicesPage({ searchParams }: { searchParams: 
       />
 
       {/* Controls */}
-      <form className="bg-white p-3 rounded-lg border flex flex-col gap-3 md:flex-row md:items-center md:justify-between" method="get">
+      <form className="bg-white p-3 rounded-xl border flex flex-col gap-3 md:flex-row md:items-center md:justify-between" method="get">
         <div className="flex items-center gap-2">
           <div className="relative">
-            <Search className="h-4 w-4 text-gray-400 absolute left-2 top-2.5" />
+            <Search className="h-4 w-4 text-slate-400 absolute left-2 top-2.5" />
             <input
               type="text"
               name="q"
               defaultValue={q}
               placeholder="Search sender, recipient, consignment..."
-              className="pl-8 pr-3 py-2 border rounded-lg w-64 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="pl-8 pr-3 py-2 border rounded-xl w-64 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <div>
             <select
               name="party"
               defaultValue={party}
-              className="px-2 py-2 border rounded-lg text-sm ml-2"
+              className="px-2 py-2 border rounded-xl text-sm ml-2"
             >
               <option value="">All Parties</option>
               {partyOptions.map(p => (
@@ -116,26 +114,16 @@ export default async function CsvInvoicesPage({ searchParams }: { searchParams: 
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-600">Rows per page</label>
-          <select name="limit" defaultValue={String(limit)} className="px-2 py-2 border rounded-lg text-sm">
+          <label className="text-sm text-slate-600">Rows per page</label>
+          <select name="limit" defaultValue={String(limit)} className="px-2 py-2 border rounded-xl text-sm">
             {[25,50,100,200].map(n => (<option key={n} value={n}>{n}</option>))}
           </select>
           <input type="hidden" name="page" value="1" />
           <input type="hidden" name="view" value={view} />
-          <button type="submit" className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">Apply</button>
+          <button type="submit" className="px-3 py-2 text-sm bg-blue-600 text-white rounded-xl hover:bg-blue-700">Apply</button>
           {q || party ? (
-            <a href={`?page=1&limit=${limit}&view=${view}`} className="px-3 py-2 text-sm border rounded-lg hover:bg-gray-50">Clear</a>
+            <a href={`?page=1&limit=${limit}&view=${view}`} className="px-3 py-2 text-sm border rounded-xl hover:bg-slate-50">Clear</a>
           ) : null}
-          {/* Global apply slabs */}
-          <GlobalApplyRatesButton
-            ids={(filteredRows || []).map((r: any) => r.id)}
-            labels={Object.fromEntries((filteredRows || []).map((r: any) => {
-              const labelLeft = String(r.consignment_no || r.booking_reference || r.id)
-              const labelRight = (() => { try { return new Date(r.booking_date).toLocaleDateString() } catch { return '' } })()
-              return [String(r.id), labelRight ? `${labelLeft} • ${labelRight}` : labelLeft]
-            }))}
-            partyNames={Object.fromEntries((filteredRows || []).map((r: any) => [String(r.id), String(r.sender_name || '')]))}
-          />
           <GeneratePartyInvoiceButton
             rows={(filteredRows || [])}
             defaultParty={party || undefined}
@@ -148,28 +136,28 @@ export default async function CsvInvoicesPage({ searchParams }: { searchParams: 
 
       {/* Staged Table (Combined disabled) */}
       
-      <div className="bg-white rounded-lg border overflow-hidden">
+      <div className="bg-white rounded-xl border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
-            <thead className="bg-gray-50 sticky top-0 z-10">
+            <thead className="bg-slate-50 sticky top-0 z-10">
             <tr>
               {headers.map(h => (
-                <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">{
+                <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-slate-600 uppercase tracking-wider whitespace-nowrap">{
                   h === 'weight' ? 'WEIGHT (IN Kg)'
                   : h === 'region' ? 'DISTANCE'
                   : h.split('_').join(' ')
                 }</th>
               ))}
-              <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Slab Rate</th>
-              <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-600 uppercase tracking-wider border-l border-gray-200">Action</th>
+              <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-600 uppercase tracking-wider whitespace-nowrap">Slab Rate</th>
+              <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-600 uppercase tracking-wider border-l border-slate-200">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {filteredRows.map((row: any, idx: number) => (
-              <tr key={row.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+              <tr key={row.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                 {headers.map(h => {
                   const val = row[h]
-                  const commonCls = 'px-4 py-2 whitespace-nowrap text-gray-900'
+                  const commonCls = 'px-4 py-2 whitespace-nowrap text-slate-900'
                   const truncateCls = ['sender_address','recipient_address','contents'].includes(h) ? 'max-w-[240px] truncate' : ''
                   const content = h === 'booking_date' || h === 'created_at'
                     ? fmtDate(val)
@@ -186,15 +174,14 @@ export default async function CsvInvoicesPage({ searchParams }: { searchParams: 
                   const meta: any = row?.pricing_meta || null
                   const base = meta?.rate_breakup?.base ?? meta?.base ?? meta?.rate_breakup?.baseRate ?? null
                   return (
-                    <td className="px-4 py-2 whitespace-nowrap text-gray-900">{base != null ? inr(base) : ''}</td>
+                    <td className="px-4 py-2 whitespace-nowrap text-slate-900">{base != null ? inr(base) : ''}</td>
                   )
                 })()}
-                <td className="px-4 py-2 whitespace-nowrap border-l border-gray-200">
+                <td className="px-4 py-2 whitespace-nowrap border-l border-slate-200">
                   <div className="flex items-center gap-1">
                     <a title="View" href={`/dashboard/csv-invoices/${row.id}`} className="p-2 rounded hover:bg-blue-50 text-blue-600"><Eye className="h-4 w-4" /></a>
                     <a title="Edit" href={`/dashboard/csv-invoices/${row.id}?edit=1`} className="p-2 rounded hover:bg-amber-50 text-amber-600"><Pencil className="h-4 w-4" /></a>
                     <a title="Download CSV" href={`/api/csv-invoices/${row.id}/csv`} className="p-2 rounded hover:bg-emerald-50 text-emerald-600"><FileSpreadsheet className="h-4 w-4" /></a>
-                    <ApplyRateButton id={row.id} />
                     <PrintPdfButton id={row.id} />
                     <DeleteRowButton id={row.id} />
                   </div>
@@ -205,15 +192,15 @@ export default async function CsvInvoicesPage({ searchParams }: { searchParams: 
         </table>
         </div>
         <div className="flex items-center justify-between p-3 border-t bg-white">
-          <div className="text-sm text-gray-600">Page {page} of {Math.max(1, Math.ceil(total / limit))} {q && `(filtered ${filteredRows.length})`}</div>
+          <div className="text-sm text-slate-600">Page {page} of {Math.max(1, Math.ceil(total / limit))} {q && `(filtered ${filteredRows.length})`}</div>
           <div className="flex gap-2">
             <a
               href={`?page=${Math.max(1, page - 1)}&limit=${limit}${q ? `&q=${encodeURIComponent(q)}` : ''}${party ? `&party=${encodeURIComponent(party)}` : ''}`}
-              className={`px-3 py-1 border rounded ${page <= 1 ? 'pointer-events-none opacity-50' : 'hover:bg-gray-50'}`}
+              className={`px-3 py-1 border rounded ${page <= 1 ? 'pointer-events-none opacity-50' : 'hover:bg-slate-50'}`}
             >Prev</a>
             <a
               href={`?page=${page + 1}&limit=${limit}${q ? `&q=${encodeURIComponent(q)}` : ''}${party ? `&party=${encodeURIComponent(party)}` : ''}`}
-              className={`px-3 py-1 border rounded ${page >= Math.ceil(total / limit) ? 'pointer-events-none opacity-50' : 'hover:bg-gray-50'}`}
+              className={`px-3 py-1 border rounded ${page >= Math.ceil(total / limit) ? 'pointer-events-none opacity-50' : 'hover:bg-slate-50'}`}
             >Next</a>
           </div>
         </div>

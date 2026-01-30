@@ -129,7 +129,7 @@ export default function PdfViewer({ pdfUrl, filename, onClose, isOpen }: PdfView
           )}
           <button
             onClick={onClose}
-            className="px-3 py-2 text-sm rounded border hover:bg-gray-50"
+            className="px-3 py-2 text-sm rounded border hover:bg-slate-50"
             title="Close"
           >
             Close
@@ -139,16 +139,16 @@ export default function PdfViewer({ pdfUrl, filename, onClose, isOpen }: PdfView
     >
       <div className="relative h-[70vh]">
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+          <div className="absolute inset-0 flex items-center justify-center bg-slate-50">
             <div className="text-center">
               <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
-              <p className="text-gray-600">Loading PDF...</p>
+              <p className="text-slate-600">Loading PDF...</p>
             </div>
           </div>
         )}
 
         {error && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+          <div className="absolute inset-0 flex items-center justify-center bg-slate-50">
             <div className="text-center">
               <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-4" />
               <p className="text-red-600 mb-4">{error}</p>

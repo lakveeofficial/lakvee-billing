@@ -28,7 +28,7 @@ export default async function CompanyHeader() {
         {hasAnyText ? (
           <div>
             <div className="text-xl font-bold">{name}</div>
-            <div className="text-xs text-gray-600">
+            <div className="text-xs text-slate-600">
               {address1 ? <div>{address1}</div> : null}
               {(state || pin) ? (
                 <div>{[state, pin].filter(Boolean).join(', ')}</div>
