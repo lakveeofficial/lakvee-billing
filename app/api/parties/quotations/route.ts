@@ -5,7 +5,7 @@ import { withAuth } from '@/lib/auth'
 // GET all party quotations
 export async function GET() {
   try {
-    // First ensure party_quotations table exists
+    // First ensure required tables exist
     await db.query(`
       CREATE TABLE IF NOT EXISTS party_quotations (
         id SERIAL PRIMARY KEY,
@@ -17,6 +17,19 @@ export async function GET() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(party_id, package_type)
+      )
+    `)
+
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS party_package_types (
+        id SERIAL PRIMARY KEY,
+        party_id INTEGER NOT NULL REFERENCES parties(id) ON DELETE CASCADE,
+        package_types JSONB NOT NULL,
+        created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(party_id)
       )
     `)
 

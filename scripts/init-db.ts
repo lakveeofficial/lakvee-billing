@@ -18,6 +18,130 @@ function inferSSLFromUrl(url?: string) {
   }
 }
 
+const STATE_REGION_MAPPING: Record<string, string> = {
+  'AP': 'SOUTH', 'AR': 'NE', 'AS': 'NE', 'BR': 'ROI', 'CG': 'CENTRAL',
+  'GA': 'WEST', 'GJ': 'WEST', 'HR': 'ROI', 'HP': 'ROI', 'JH': 'ROI', 'KA': 'SOUTH',
+  'KL': 'SOUTH', 'MP': 'MP', 'MH': 'WEST', 'MN': 'NE', 'ML': 'NE',
+  'MZ': 'NE', 'NL': 'NE', 'OR': 'ROI', 'PB': 'ROI', 'RJ': 'ROI',
+  'SK': 'NE', 'TN': 'SOUTH', 'TG': 'SOUTH', 'TR': 'NE', 'UP': 'ROI',
+  'UK': 'ROI', 'WB': 'ROI', 'AN': 'SOUTH', 'CH': 'ROI', 'DN': 'WEST', 'DL': 'ROI',
+  'JK': 'ROI', 'LA': 'ROI', 'LD': 'SOUTH', 'PY': 'SOUTH'
+};
+
+
+async function seedRegionsAndCenters(client: any) {
+  const fs = await import('fs');
+  const path = await import('path');
+
+  console.log('Seeding Regions and Centers...');
+
+  // 1. Fetch current regions to map appropriately
+  const regionRes = await client.query('SELECT id, code FROM regions');
+  const regionIdMap: Record<string, number> = {};
+  regionRes.rows.forEach((r: any) => regionIdMap[r.code] = r.id);
+
+  // If regions are empty (initial run), seed standard ones
+  if (Object.keys(regionIdMap).length === 0) {
+    const standardRegions = [
+      { code: 'NORTH', name: 'North India' },
+      { code: 'SOUTH', name: 'South India' },
+      { code: 'EAST', name: 'East India' },
+      { code: 'WEST', name: 'West India' },
+      { code: 'CENTRAL', name: 'Central India' },
+      { code: 'NORTH_EAST', name: 'North East India' }
+    ];
+    for (const r of standardRegions) {
+      await client.query('INSERT INTO regions (code, name) VALUES ($1,$2) ON CONFLICT DO NOTHING', [r.code, r.name]);
+    }
+    // Refresh map
+    const refreshed = await client.query('SELECT id, code FROM regions');
+    refreshed.rows.forEach((r: any) => regionIdMap[r.code] = r.id);
+  }
+
+  // 2. Load indiaData from file and parse
+  const dataPath = path.resolve(process.cwd(), 'lib/indiaData.ts');
+  if (!fs.existsSync(dataPath)) {
+    console.log('indiaData.ts not found, skipping center seeding.');
+    return;
+  }
+  const content = fs.readFileSync(dataPath, 'utf-8');
+
+  const states: { name: string, code: string, cities: string[] }[] = [];
+  const stateMatches = content.matchAll(/name: "([^"]+)",\s+code: "([^"]+)",\s+cities: \[([\s\S]*?)\]/g);
+  for (const match of stateMatches) {
+    const stateName = match[1];
+    const stateCode = match[2];
+    const cityBlock = match[3];
+    const cityMatches = cityBlock.matchAll(/name: "([^"]+)"/g);
+    const cities = Array.from(cityMatches).map(m => m[1]);
+    states.push({ name: stateName, code: stateCode, cities });
+  }
+
+  const metroMatch = content.match(/export const METRO_CITIES = \[([\s\S]*?)\]/);
+  const metroCities: string[] = [];
+  if (metroMatch) {
+    const cityMatches = metroMatch[1].matchAll(/name: "([^"]+)"/g);
+    cityMatches.forEach(m => metroCities.push(m[1]));
+  }
+
+  // 3. Seed Region-State mappings
+  for (const [stateCode, regionCode] of Object.entries(STATE_REGION_MAPPING)) {
+    const regionId = regionIdMap[regionCode] || regionIdMap['ROI']; // Default to ROI if NORTH/EAST deleted
+    if (regionId) {
+      await client.query(`
+                INSERT INTO region_states (region_id, state_code) 
+                VALUES ($1, $2)
+                ON CONFLICT (region_id, state_code) DO NOTHING
+            `, [regionId, stateCode]);
+    }
+  }
+
+  // 4. Seed Centers in bulk
+  console.log('Seeding centers in bulk...');
+  let values: any[] = [];
+  let placeholders: string[] = [];
+  let pInd = 1;
+
+  const getRegionCode = (stateCode: string, cityName: string) => {
+    if (cityName.toLowerCase().includes('mumbai') || stateCode === 'MUM') return 'MUM';
+    if (metroCities.includes(cityName)) return 'METRO';
+    return STATE_REGION_MAPPING[stateCode] || 'ROI';
+  };
+
+  for (const state of states) {
+    for (const cityName of state.cities) {
+      const regionCode = getRegionCode(state.code, cityName);
+      const regionId = regionIdMap[regionCode] || regionIdMap['ROI'] || regionIdMap['NORTH'] || regionIdMap['EAST'];
+
+      if (regionId) {
+        values.push(state.code, cityName, regionId, true);
+        placeholders.push(`($${pInd++}, $${pInd++}, $${pInd++}, $${pInd++})`);
+      }
+
+      if (placeholders.length >= 100) {
+        await client.query(`
+                    INSERT INTO centers (state, city, region_id, is_active)
+                    VALUES ${placeholders.join(', ')}
+                    ON CONFLICT (state, city) DO NOTHING
+                `, values);
+        placeholders = [];
+        values = [];
+        pInd = 1;
+      }
+    }
+  }
+
+  if (placeholders.length > 0) {
+    await client.query(`
+            INSERT INTO centers (state, city, region_id, is_active)
+            VALUES ${placeholders.join(', ')}
+            ON CONFLICT (state, city) DO NOTHING
+        `, values);
+  }
+}
+
+
+
 const needsSSL = inferSSLFromUrl(process.env.DATABASE_URL)
 
 const pool = new Pool({
@@ -227,6 +351,20 @@ async function initializeDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(party_id, package_type)
+      )
+    `);
+
+    console.log('Creating party_package_types table...');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS party_package_types (
+        id SERIAL PRIMARY KEY,
+        party_id INTEGER NOT NULL REFERENCES parties(id) ON DELETE CASCADE,
+        package_types JSONB NOT NULL,
+        created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(party_id)
       )
     `);
 
@@ -545,13 +683,19 @@ async function initializeDatabase() {
         id SERIAL PRIMARY KEY,
         state TEXT,
         city TEXT NOT NULL,
+        pincode VARCHAR(20),
         region_id INT REFERENCES regions(id) ON DELETE SET NULL,
         booking_count INT NOT NULL DEFAULT 0,
         is_active BOOLEAN NOT NULL DEFAULT TRUE,
         created_at TIMESTAMPTZ DEFAULT now(),
-        updated_at TIMESTAMPTZ DEFAULT now()
+        updated_at TIMESTAMPTZ DEFAULT now(),
+        UNIQUE(state, city)
       );
-    `);
+    `)
+    await client.query(`
+      ALTER TABLE centers ADD COLUMN IF NOT EXISTS pincode VARCHAR(20);
+    `)
+
     await client.query(`
       CREATE TABLE IF NOT EXISTS carriers (
         id SERIAL PRIMARY KEY,
@@ -1016,6 +1160,11 @@ async function initializeDatabase() {
     } else {
       console.log('Billing operator user already exists.');
     }
+
+    // Comprehensive Seeding for Centers and Regions
+    // Note: We use existing regions where possible to respect user deletions/renames
+    console.log('Running exhaustive seeding for Indian Centers and Regions...');
+    await seedRegionsAndCenters(client);
 
     await client.query('COMMIT');
     console.log('✅ Database initialized successfully!');

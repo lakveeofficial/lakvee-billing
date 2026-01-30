@@ -39,9 +39,9 @@ export default function PartyPackageTypesModal({ isOpen, onClose, partyId, party
       setLoading(true)
       const response = await fetch(`/api/parties/${partyId}/package-types`)
       const data = await response.json()
-      
+
       if (data.success) {
-        setPackageTypes(data.data || getDefaultPackageTypes())
+        setPackageTypes((data.data && data.data.length > 0) ? data.data : getDefaultPackageTypes())
       } else {
         setPackageTypes(getDefaultPackageTypes())
       }
@@ -93,7 +93,7 @@ export default function PartyPackageTypesModal({ isOpen, onClose, partyId, party
   }
 
   const updatePackageType = (id: string, updates: Partial<PackageType>) => {
-    setPackageTypes(packageTypes.map(pkg => 
+    setPackageTypes(packageTypes.map(pkg =>
       pkg.id === id ? { ...pkg, ...updates } : pkg
     ))
   }
@@ -250,8 +250,8 @@ export default function PartyPackageTypesModal({ isOpen, onClose, partyId, party
                       <input
                         type="number"
                         value={packageType.extraWeight || ''}
-                        onChange={(e) => updatePackageType(packageType.id, { 
-                          extraWeight: parseInt(e.target.value) || undefined 
+                        onChange={(e) => updatePackageType(packageType.id, {
+                          extraWeight: parseInt(e.target.value) || undefined
                         })}
                         className="w-24 px-2 py-1 border border-slate-300 rounded text-sm"
                         placeholder="1000"

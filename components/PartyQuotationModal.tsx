@@ -47,7 +47,7 @@ export default function PartyQuotationModal({ isOpen, onClose, partyId, partyNam
   const fetchData = async () => {
     try {
       setLoading(true)
-      
+
       // Fetch regions
       const regionsResponse = await fetch('/api/regions', {
         credentials: 'include'
@@ -60,8 +60,8 @@ export default function PartyQuotationModal({ isOpen, onClose, partyId, partyNam
         credentials: 'include'
       })
       const packageTypesData = await packageTypesResponse.json()
-      
-      const types = packageTypesData.success ? packageTypesData.data : [
+
+      const types = (packageTypesData.success && packageTypesData.data && packageTypesData.data.length > 0) ? packageTypesData.data : [
         {
           name: 'DOX',
           ranges: [
@@ -81,7 +81,7 @@ export default function PartyQuotationModal({ isOpen, onClose, partyId, partyNam
           unit: 'kg'
         }
       ]
-      
+
       setPackageTypes(types)
       if (types.length > 0) {
         setActiveTab(types[0].name)
@@ -92,7 +92,7 @@ export default function PartyQuotationModal({ isOpen, onClose, partyId, partyNam
         credentials: 'include'
       })
       const quotationsData = await quotationsResponse.json()
-      
+
       if (quotationsData.success && quotationsData.data) {
         const formattedData: QuotationData = {}
         quotationsData.data.forEach((quotation: any) => {
@@ -110,13 +110,13 @@ export default function PartyQuotationModal({ isOpen, onClose, partyId, partyNam
   }
 
   const getCurrentPackageType = () => {
-    return packageTypes.find(pkg => pkg.name === activeTab)
+    return (packageTypes || []).find(pkg => pkg.name === activeTab)
   }
 
   const getWeightColumns = () => {
     const currentPackageType = getCurrentPackageType()
     if (!currentPackageType) return []
-    
+
     // Display strictly using the package type's selected unit.
     // Interpret each range.weight as being in the package type unit to avoid mixed-unit headers.
     const targetUnit = (currentPackageType.unit || '').toLowerCase()
@@ -124,12 +124,12 @@ export default function PartyQuotationModal({ isOpen, onClose, partyId, partyNam
       const weightText = String(range.weight)
       return `${weightText}_${targetUnit}`
     })
-    
+
     if (currentPackageType.extraWeight) {
       const extraText = String(currentPackageType.extraWeight)
       columns.push(`Add_${extraText}_${targetUnit}`)
     }
-    
+
     return columns
   }
 
@@ -149,9 +149,9 @@ export default function PartyQuotationModal({ isOpen, onClose, partyId, partyNam
   const handleSave = async () => {
     try {
       setSaving(true)
-      
+
       const currentData = quotationData[activeTab] || {}
-      
+
       const response = await fetch(`/api/parties/${partyId}/quotations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -216,15 +216,14 @@ export default function PartyQuotationModal({ isOpen, onClose, partyId, partyNam
             <>
               {/* Package Type Tabs */}
               <div className="flex gap-1 mb-4 border-b border-slate-200">
-                {packageTypes.map((packageType) => (
+                {(packageTypes || []).map((packageType) => (
                   <button
                     key={packageType.name}
                     onClick={() => setActiveTab(packageType.name)}
-                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                      activeTab === packageType.name
-                        ? 'border-blue-500 text-blue-600 bg-blue-50'
-                        : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                    }`}
+                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === packageType.name
+                      ? 'border-blue-500 text-blue-600 bg-blue-50'
+                      : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                      }`}
                   >
                     {packageType.name}
                   </button>

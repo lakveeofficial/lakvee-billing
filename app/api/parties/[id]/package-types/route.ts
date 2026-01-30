@@ -21,7 +21,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     } else {
       return NextResponse.json({
         success: true,
-        data: null
+        data: []
       })
     }
   } catch (error) {

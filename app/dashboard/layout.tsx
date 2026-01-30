@@ -201,8 +201,7 @@ export default function DashboardLayout({
                       <button
                         onClick={() => {
                           setProfileDropdownOpen(false)
-                          // TODO: Navigate to edit profile page
-                          console.log('Edit Profile clicked')
+                          router.push('/dashboard/profile')
                         }}
                         className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-primary-50 hover:text-primary-700 transition-colors duration-150 flex items-center gap-3"
                       >
@@ -271,6 +270,7 @@ function MobileSidebarContent({
   user: User,
   onLogout: () => void
 }) {
+  const router = useRouter()
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Logo */}
@@ -336,8 +336,7 @@ function MobileSidebarContent({
       <div className="flex-shrink-0 border-t border-slate-200 p-4 space-y-2">
         <button
           onClick={() => {
-            // TODO: Navigate to edit profile page
-            console.log('Edit Profile clicked')
+            router.push('/dashboard/profile')
           }}
           className="group flex items-center px-3 py-2 text-sm font-medium rounded-md text-slate-700 hover:bg-primary-600 hover:text-white w-full transition-colors duration-150"
         >
