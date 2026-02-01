@@ -1021,6 +1021,18 @@ async function initializeDatabase() {
         )
     `);
 
+    // Create bill_bookings table for mapping bookings to bills
+    console.log('Creating bill_bookings table...');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS bill_bookings(
+        id SERIAL PRIMARY KEY,
+        bill_id INTEGER NOT NULL REFERENCES bills(id) ON DELETE CASCADE,
+        booking_type VARCHAR(20) NOT NULL CHECK (booking_type IN ('account','cash')),
+        booking_id INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Ensure bill_type column exists
     await client.query(`ALTER TABLE bills ADD COLUMN IF NOT EXISTS bill_type VARCHAR(50) DEFAULT 'monthly'`);
 

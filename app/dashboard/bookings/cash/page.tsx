@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Search, Plus } from 'lucide-react'
+import { Search, Plus, Trash2, Eye, Check, Package, Trash } from 'lucide-react'
 import { INDIAN_STATES, getCityName } from '@/lib/indiaData' // Replaced ALL_LOCATIONS
 // ...
 const getStateFullName = (codeOrName: string) => {
@@ -11,6 +11,7 @@ const getStateFullName = (codeOrName: string) => {
 import AddCenterModal from '@/components/AddCenterModal'
 import GradientSectionHeader from '@/components/GradientSectionHeader'
 import PageHeader from '@/components/PageHeader'
+import ConfirmationModal from '@/components/ConfirmationModal'
 
 
 interface Party {
@@ -110,6 +111,11 @@ export default function CashBookingPage() {
   const [addCenterOpen, setAddCenterOpen] = useState(false)
   const [centers, setCenters] = useState<Array<{ id: number; state: string; city: string; region_id: number | null }>>([])
   const [showCenterSuggest, setShowCenterSuggest] = useState(false)
+  const [selectedBookingIds, setSelectedBookingIds] = useState<Set<number>>(new Set())
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false)
+  const [bookingToDelete, setBookingToDelete] = useState<number | null>(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   const getStateFullName = (codeOrName: string) => {
     const match = INDIAN_STATES.find(s => s.code === codeOrName)
@@ -193,6 +199,104 @@ export default function CashBookingPage() {
     }
     loadData()
   }, [])
+
+  const refreshBookings = async () => {
+    setIsRefreshing(true)
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+      const headers: HeadersInit = {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      }
+      const bookingsRes = await fetch('/api/bookings/cash', { headers })
+      const bookingsData = await bookingsRes.json()
+      setBookings(bookingsData.data || [])
+    } catch (error) {
+      console.error('Error refreshing bookings:', error)
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
+  const handleDeleteBooking = (id: number) => {
+    setBookingToDelete(id)
+    setIsDeleteModalOpen(true)
+  }
+
+  const executeDeleteBooking = async () => {
+    if (!bookingToDelete) return
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+      const headersInit: HeadersInit = {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      }
+      const response = await fetch(`/api/bookings/cash/${bookingToDelete}`, {
+        method: 'DELETE',
+        headers: headersInit
+      })
+
+      if (response.ok) {
+        alert('Booking deleted successfully!')
+        refreshBookings()
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Failed to delete booking')
+      }
+    } catch (error) {
+      console.error('Error deleting booking:', error)
+      alert('Failed to delete booking')
+    } finally {
+      setIsDeleteModalOpen(false)
+      setBookingToDelete(null)
+    }
+  }
+
+  const handleToggleSelectAll = (filteredBookings: any[]) => {
+    if (selectedBookingIds.size === filteredBookings.length) {
+      setSelectedBookingIds(new Set())
+    } else {
+      setSelectedBookingIds(new Set(filteredBookings.map(b => b.id)))
+    }
+  }
+
+  const handleToggleSelectBooking = (id: number) => {
+    const next = new Set(selectedBookingIds)
+    if (next.has(id)) {
+      next.delete(id)
+    } else {
+      next.add(id)
+    }
+    setSelectedBookingIds(next)
+  }
+
+  const executeBulkDelete = async () => {
+    if (selectedBookingIds.size === 0) return
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
+      const response = await fetch('/api/bookings/cash/bulk-delete', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ ids: Array.from(selectedBookingIds) })
+      })
+
+      if (response.ok) {
+        alert(`${selectedBookingIds.size} bookings deleted successfully!`)
+        setSelectedBookingIds(new Set())
+        refreshBookings()
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Failed to bulk delete bookings')
+      }
+    } catch (error) {
+      console.error('Error bulk deleting bookings:', error)
+      alert('Failed to delete bookings')
+    } finally {
+      setIsBulkDeleteModalOpen(false)
+    }
+  }
 
   // Auto-calculate rate when dependencies change
   useEffect(() => {
@@ -740,12 +844,98 @@ export default function CashBookingPage() {
               title="BOOKINGS / CASH"
               variant="emerald"
               actions={
-                <span className="text-sm text-emerald-100 flex items-center gap-1 bg-white/10 px-2 py-1 rounded">
-                  👁️ ✓ SHOW ALL BOOKING
-                </span>
+                <div className="flex items-center gap-2">
+                  {selectedBookingIds.size > 0 && (
+                    <button
+                      onClick={() => setIsBulkDeleteModalOpen(true)}
+                      className="px-3 py-1.5 bg-red-500 text-white rounded text-sm hover:bg-red-600 flex items-center gap-1 shadow-sm transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span>Delete ({selectedBookingIds.size})</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={refreshBookings}
+                    disabled={isRefreshing}
+                    className="px-3 py-1.5 bg-white/20 text-white rounded text-sm hover:bg-white/30 disabled:opacity-50 flex items-center gap-1 backdrop-blur-sm transition-colors"
+                  >
+                    {isRefreshing ? 'Refreshing...' : 'Refresh'}
+                  </button>
+                  <button
+                    onClick={() => setShowAllBookings(!showAllBookings)}
+                    className={`flex items-center space-x-1 text-sm px-3 py-1.5 rounded transition-colors ${showAllBookings
+                      ? 'bg-white text-emerald-700 font-medium'
+                      : 'text-emerald-100 hover:text-white hover:bg-white/10'
+                      }`}
+                  >
+                    <Eye className="h-4 w-4" />
+                    <Check className="h-4 w-4" />
+                    <span>SHOW ALL</span>
+                  </button>
+                </div>
               }
             >
               <div className="flex space-x-2">
+                <div className="flex items-center bg-white/10 border border-emerald-400/30 rounded px-2">
+                  <input
+                    type="checkbox"
+                    checked={bookings.length > 0 && selectedBookingIds.size === bookings.filter(booking => {
+                      const matchesSearch = !searchTerm ||
+                        booking.sender?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        booking.receiver?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        booking.reference_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        booking.sender_mobile?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        booking.receiver_mobile?.toLowerCase().includes(searchTerm.toLowerCase())
+
+                      if (!matchesSearch) return false
+                      if (selectedOptions === 'Select Options') return true
+
+                      const bookingDate = new Date(booking.booking_date || booking.date)
+                      const now = new Date()
+
+                      if (selectedOptions === 'Today') {
+                        return bookingDate.toDateString() === now.toDateString()
+                      }
+                      if (selectedOptions === 'This Week') {
+                        const oneWeekAgo = new Date()
+                        oneWeekAgo.setDate(now.getDate() - 7)
+                        return bookingDate >= oneWeekAgo
+                      }
+                      if (selectedOptions === 'This Month') {
+                        return bookingDate.getMonth() === now.getMonth() && bookingDate.getFullYear() === now.getFullYear()
+                      }
+                      return true
+                    }).length}
+                    onChange={() => handleToggleSelectAll(bookings.filter(booking => {
+                      const matchesSearch = !searchTerm ||
+                        booking.sender?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        booking.receiver?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        booking.reference_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        booking.sender_mobile?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        booking.receiver_mobile?.toLowerCase().includes(searchTerm.toLowerCase())
+
+                      if (!matchesSearch) return false
+                      if (selectedOptions === 'Select Options') return true
+
+                      const bookingDate = new Date(booking.booking_date || booking.date)
+                      const now = new Date()
+
+                      if (selectedOptions === 'Today') {
+                        return bookingDate.toDateString() === now.toDateString()
+                      }
+                      if (selectedOptions === 'This Week') {
+                        const oneWeekAgo = new Date()
+                        oneWeekAgo.setDate(now.getDate() - 7)
+                        return bookingDate >= oneWeekAgo
+                      }
+                      if (selectedOptions === 'This Month') {
+                        return bookingDate.getMonth() === now.getMonth() && bookingDate.getFullYear() === now.getFullYear()
+                      }
+                      return true
+                    }))}
+                    className="rounded border-emerald-400/50 text-emerald-500 focus:ring-emerald-500 h-4 w-4 bg-white/20"
+                  />
+                </div>
                 <select
                   value={selectedOptions}
                   onChange={(e) => setSelectedOptions(e.target.value)}
@@ -806,22 +996,85 @@ export default function CashBookingPage() {
                     return true
                   })
 
-                  .map((booking, index) => (
-                    <div key={index} className="border border-slate-200 rounded p-3 text-sm">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                            {booking.sender?.charAt(0) || 'C'}
+                  .map((booking) => (
+                    <div
+                      key={booking.id}
+                      className={`border rounded-xl p-4 hover:shadow-sm transition-all duration-200 bg-white ${selectedBookingIds.has(booking.id) ? 'border-emerald-500 ring-1 ring-emerald-500/20 shadow-md translate-x-1' : 'border-slate-200'}`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start space-x-3 flex-1">
+                          {/* Checkbox */}
+                          <div className="pt-3">
+                            <input
+                              type="checkbox"
+                              checked={selectedBookingIds.has(booking.id)}
+                              onChange={() => handleToggleSelectBooking(booking.id)}
+                              className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 h-4 w-4 transition-colors"
+                            />
                           </div>
-                          <div>
-                            <div className="font-medium">{booking.sender} - {booking.receiver}</div>
-                            <div className="text-slate-500 text-xs">
-                              {booking.reference_number} | ₹{booking.net_amount}
+
+                          {/* Party Icon */}
+                          <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-semibold text-lg flex-shrink-0">
+                            {booking.sender?.charAt(0)?.toUpperCase() || 'C'}
+                          </div>
+
+                          {/* Booking Details */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-semibold text-slate-900 truncate">
+                                {booking.sender || 'Unknown'}
+                              </span>
+                              {booking.package_type && (
+                                <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded font-medium">
+                                  {booking.package_type}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center text-sm text-slate-600 mb-2">
+                              <Package className="h-3 w-3 mr-1" />
+                              <span className="truncate">
+                                WT {booking.weight || 0} {booking.weight_unit || 'kg'} | {booking.number_of_boxes || 1} Box
+                              </span>
+                            </div>
+
+                            <div className="text-xs text-slate-500">
+                              To: <span className="font-medium text-slate-700">{booking.receiver || 'N/A'}</span>
                             </div>
                           </div>
                         </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex items-center space-x-1 ml-3">
+                          <button
+                            className="p-2 text-slate-600 hover:bg-slate-100 rounded"
+                            title="View Booking ID"
+                          >
+                            <span className="text-xs font-mono bg-slate-100 px-2 py-1 rounded">
+                              #{booking.id?.toString().padStart(4, '0') || '0000'}
+                            </span>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteBooking(booking.id)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded"
+                            title="Delete Booking"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Footer with amount and date */}
+                      <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
                         <div className="text-xs text-slate-500">
-                          #{booking.id || 'WP6450061'}
+                          {new Date(booking.date || booking.booking_date).toLocaleDateString('en-IN', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric'
+                          })}
+                        </div>
+                        <div className="text-sm font-semibold text-slate-900">
+                          ₹{parseFloat(booking.net_amount || 0).toFixed(2)}
                         </div>
                       </div>
                     </div>
@@ -840,6 +1093,28 @@ export default function CashBookingPage() {
           updateBookingData('center', created.city)
           setAddCenterOpen(false)
         }}
+      />
+
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={executeDeleteBooking}
+        title="Delete Booking"
+        message="Are you sure you want to delete this booking? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+      />
+
+      <ConfirmationModal
+        isOpen={isBulkDeleteModalOpen}
+        onClose={() => setIsBulkDeleteModalOpen(false)}
+        onConfirm={executeBulkDelete}
+        title="Bulk Delete Bookings"
+        message={`Are you sure you want to delete ${selectedBookingIds.size} selected bookings? This action cannot be undone.`}
+        confirmText="Delete All Selected"
+        cancelText="Cancel"
+        type="danger"
       />
     </>
   )

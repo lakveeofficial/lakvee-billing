@@ -136,6 +136,8 @@ export default function AccountBookingPage() {
   const [receivers, setReceivers] = useState<Array<{ id: number; name: string; city?: string; contact?: string }>>([])
   const [showReceiverSuggest, setShowReceiverSuggest] = useState(false)
   const [bookingToDelete, setBookingToDelete] = useState<number | null>(null)
+  const [selectedBookingIds, setSelectedBookingIds] = useState<Set<number>>(new Set())
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false)
 
   const getStateFullName = (codeOrName: string) => {
     const match = INDIAN_STATES.find(s => s.code === codeOrName)
@@ -489,6 +491,56 @@ export default function AccountBookingPage() {
       alert('Failed to delete booking')
     } finally {
       setBookingToDelete(null)
+    }
+  }
+
+  const handleToggleSelectAll = (filteredBookings: any[]) => {
+    if (selectedBookingIds.size === filteredBookings.length) {
+      setSelectedBookingIds(new Set())
+    } else {
+      setSelectedBookingIds(new Set(filteredBookings.map(b => b.id)))
+    }
+  }
+
+  const handleToggleSelectBooking = (id: number) => {
+    const next = new Set(selectedBookingIds)
+    if (next.has(id)) {
+      next.delete(id)
+    } else {
+      next.add(id)
+    }
+    setSelectedBookingIds(next)
+  }
+
+  const executeBulkDelete = async () => {
+    if (selectedBookingIds.size === 0) return
+
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
+
+      const response = await fetch('/api/bookings/account/bulk-delete', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ ids: Array.from(selectedBookingIds) })
+      })
+
+      if (response.ok) {
+        alert(`${selectedBookingIds.size} bookings deleted successfully!`)
+        setSelectedBookingIds(new Set())
+        refreshBookings()
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Failed to bulk delete bookings')
+      }
+    } catch (error) {
+      console.error('Error bulk deleting bookings:', error)
+      alert('Failed to delete bookings')
+    } finally {
+      setIsBulkDeleteModalOpen(false)
     }
   }
 
@@ -1072,6 +1124,15 @@ export default function AccountBookingPage() {
             variant="emerald"
             actions={
               <>
+                {selectedBookingIds.size > 0 && (
+                  <button
+                    onClick={() => setIsBulkDeleteModalOpen(true)}
+                    className="px-3 py-1.5 bg-red-500 text-white rounded text-sm hover:bg-red-600 flex items-center gap-1 shadow-sm transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span>Delete ({selectedBookingIds.size})</span>
+                  </button>
+                )}
                 <button
                   onClick={refreshBookings}
                   disabled={isRefreshing}
@@ -1094,6 +1155,66 @@ export default function AccountBookingPage() {
             }
           >
             <div className="flex space-x-2">
+              <div className="flex items-center bg-white/10 border border-emerald-400/30 rounded px-2">
+                <input
+                  type="checkbox"
+                  checked={bookings.length > 0 && selectedBookingIds.size === bookings.filter(booking => {
+                    const matchesSearch = !searchTerm ||
+                      booking.sender?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      booking.receiver?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      booking.reference_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      booking.mobile?.toLowerCase().includes(searchTerm.toLowerCase())
+
+                    if (!matchesSearch) return false
+                    if (showAllBookings) return true
+                    if (selectedOptions === 'Select Options') return true
+
+                    const bookingDate = new Date(booking.booking_date)
+                    const now = new Date()
+
+                    if (selectedOptions === 'Today') {
+                      return bookingDate.toDateString() === now.toDateString()
+                    }
+                    if (selectedOptions === 'This Week') {
+                      const oneWeekAgo = new Date()
+                      oneWeekAgo.setDate(now.getDate() - 7)
+                      return bookingDate >= oneWeekAgo
+                    }
+                    if (selectedOptions === 'This Month') {
+                      return bookingDate.getMonth() === now.getMonth() && bookingDate.getFullYear() === now.getFullYear()
+                    }
+                    return true
+                  }).length}
+                  onChange={() => handleToggleSelectAll(bookings.filter(booking => {
+                    const matchesSearch = !searchTerm ||
+                      booking.sender?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      booking.receiver?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      booking.reference_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      booking.mobile?.toLowerCase().includes(searchTerm.toLowerCase())
+
+                    if (!matchesSearch) return false
+                    if (showAllBookings) return true
+                    if (selectedOptions === 'Select Options') return true
+
+                    const bookingDate = new Date(booking.booking_date)
+                    const now = new Date()
+
+                    if (selectedOptions === 'Today') {
+                      return bookingDate.toDateString() === now.toDateString()
+                    }
+                    if (selectedOptions === 'This Week') {
+                      const oneWeekAgo = new Date()
+                      oneWeekAgo.setDate(now.getDate() - 7)
+                      return bookingDate >= oneWeekAgo
+                    }
+                    if (selectedOptions === 'This Month') {
+                      return bookingDate.getMonth() === now.getMonth() && bookingDate.getFullYear() === now.getFullYear()
+                    }
+                    return true
+                  }))}
+                  className="rounded border-emerald-400/50 text-emerald-500 focus:ring-emerald-500 h-4 w-4 bg-white/20"
+                />
+              </div>
               <select
                 value={selectedOptions}
                 onChange={(e) => setSelectedOptions(e.target.value)}
@@ -1162,10 +1283,20 @@ export default function AccountBookingPage() {
                 .map((booking) => (
                   <div
                     key={booking.id}
-                    className="border border-slate-200 rounded-xl p-4 hover:shadow-sm transition-shadow bg-white"
+                    className={`border rounded-xl p-4 hover:shadow-sm transition-all duration-200 bg-white ${selectedBookingIds.has(booking.id) ? 'border-emerald-500 ring-1 ring-emerald-500/20 shadow-md translate-x-1' : 'border-slate-200'}`}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex items-start space-x-3 flex-1">
+                        {/* Checkbox */}
+                        <div className="pt-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedBookingIds.has(booking.id)}
+                            onChange={() => handleToggleSelectBooking(booking.id)}
+                            className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 h-4 w-4 transition-colors"
+                          />
+                        </div>
+
                         {/* Party Icon */}
                         <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-semibold text-lg flex-shrink-0">
                           {booking.sender?.charAt(0)?.toUpperCase() || 'P'}
@@ -1295,6 +1426,17 @@ export default function AccountBookingPage() {
         title="Delete Booking"
         message="Are you sure you want to delete this booking? This action cannot be undone."
         confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+      />
+
+      <ConfirmationModal
+        isOpen={isBulkDeleteModalOpen}
+        onClose={() => setIsBulkDeleteModalOpen(false)}
+        onConfirm={executeBulkDelete}
+        title="Bulk Delete Bookings"
+        message={`Are you sure you want to delete ${selectedBookingIds.size} selected bookings? This action cannot be undone.`}
+        confirmText="Delete All Selected"
         cancelText="Cancel"
         type="danger"
       />

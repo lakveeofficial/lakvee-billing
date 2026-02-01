@@ -61,18 +61,21 @@ async function ensureOfflineBookingsTable() {
 }
 
 function parseCSV(csvText: string): Record<string, any>[] {
-  const lines = csvText.trim().split('\n')
+  // Strip BOM if present
+  const cleanCSV = csvText.replace(/^\uFEFF/, '').trim()
+  const lines = cleanCSV.split(/\r?\n/)
   if (lines.length < 2) return []
 
-  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
+  // Normalize headers: trim, remove quotes, uppercase
+  const rawHeaders = lines[0].split(',').map(h => h.trim().replace(/^"(.*)"$/, '$1').toUpperCase())
   const records: Record<string, any>[] = []
 
   for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''))
-    if (values.length !== headers.length) continue
+    const values = lines[i].split(',').map(v => v.trim().replace(/^"(.*)"$/, '$1'))
+    if (values.length < rawHeaders.length) continue
 
     const record: Record<string, any> = {}
-    headers.forEach((header, index) => {
+    rawHeaders.forEach((header, index) => {
       record[header] = values[index] || null
     })
     records.push(record)
@@ -83,9 +86,54 @@ function parseCSV(csvText: string): Record<string, any>[] {
 
 function mapBookingRecord(record: Record<string, any>, type: 'booking' | 'offline') {
   const parseDate = (dateStr: string) => {
+    console.log('[DEBUG] IMPORT parseDate input:', `"${dateStr}"`)
     if (!dateStr) return new Date().toISOString().split('T')[0]
-    const date = new Date(dateStr)
-    return isNaN(date.getTime()) ? new Date().toISOString().split('T')[0] : date.toISOString().split('T')[0]
+
+    // Remove any non-timestamp junk and trim (handling invisible chars)
+    const raw = String(dateStr).replace(/[^\x20-\x7E]/g, '').trim()
+    console.log('[DEBUG] IMPORT parseDate cleaned:', `"${raw}"`)
+
+    // 1. Prioritize DD-MM-YYYY or DD/MM/YYYY or DD.MM.YYYY
+    // Support 2-digit or 4-digit years, and allow trailing time/text
+    const dmyMatch = raw.match(/^(\d{1,2})[^\d]+(\d{1,2})[^\d]+(\d{2,4})/)
+    if (dmyMatch) {
+      let d = parseInt(dmyMatch[1], 10)
+      let m = parseInt(dmyMatch[2], 10)
+      let y = parseInt(dmyMatch[3], 10)
+
+      // Handle 2-digit years (assume 20xx)
+      if (y < 100) y += 2000
+
+      console.log('[DEBUG] Flexible IMPORT DMY Match detected:', { d, m, y })
+      const dt = new Date(Date.UTC(y, m - 1, d))
+      if (!isNaN(dt.getTime())) {
+        const res = dt.toISOString().split('T')[0]
+        console.log('[DEBUG] IMPORT DMY Result:', res)
+        return res
+      }
+    }
+
+    // 2. Fallback to ISO-like YYYY-MM-DD
+    const isoMatch = raw.match(/^(\d{4})[^\d]+(\d{1,2})[^\d]+(\d{1,2})$/)
+    if (isoMatch) {
+      const y = parseInt(isoMatch[1], 10)
+      const m = parseInt(isoMatch[2], 10)
+      const d = parseInt(isoMatch[3], 10)
+      console.log('[DEBUG] Flexible IMPORT ISO Match detected:', { y, m, d })
+      const dt = new Date(Date.UTC(y, m - 1, d))
+      if (!isNaN(dt.getTime())) {
+        const res = dt.toISOString().split('T')[0]
+        console.log('[DEBUG] IMPORT ISO Result:', res)
+        return res
+      }
+    }
+
+    // Fallback to standard Date parser
+    console.log('[DEBUG] IMPORT Falling back to standard Date parser for:', raw)
+    const date = new Date(raw)
+    const res = isNaN(date.getTime()) ? new Date().toISOString().split('T')[0] : date.toISOString().split('T')[0]
+    console.log('[DEBUG] IMPORT Fallback Result:', res)
+    return res
   }
 
   const parseNumber = (val: any): number | null => {

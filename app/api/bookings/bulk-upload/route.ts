@@ -43,20 +43,22 @@ async function ensureAccountBookingsTable() {
 }
 
 function parseCSV(csvText: string): Record<string, any>[] {
-  const lines = csvText.trim().split('\n')
+  // Strip BOM if present
+  const cleanCSV = csvText.replace(/^\uFEFF/, '').trim()
+  const lines = cleanCSV.split(/\r?\n/)
   if (lines.length < 2) return []
 
-  // Normalize headers to uppercase for robust matching
-  const rawHeaders = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
-  const headers = rawHeaders.map(h => h.toUpperCase())
+  // Normalize headers: trim, remove quotes, uppercase
+  const rawHeaders = lines[0].split(',').map(h => h.trim().replace(/^"(.*)"$/, '$1').toUpperCase())
   const records: Record<string, any>[] = []
 
   for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''))
-    if (values.length !== headers.length) continue
+    // Simple comma split (doesn't handle commas inside quotes, but fits current usage)
+    const values = lines[i].split(',').map(v => v.trim().replace(/^"(.*)"$/, '$1'))
+    if (values.length < rawHeaders.length) continue
 
     const record: Record<string, any> = {}
-    headers.forEach((header, index) => {
+    rawHeaders.forEach((header, index) => {
       record[header] = values[index] || null
     })
     records.push(record)
@@ -66,42 +68,55 @@ function parseCSV(csvText: string): Record<string, any>[] {
 }
 
 function parseDate(dateStr: string): string {
-  // Return today if empty
+  console.log('[DEBUG] parseDate input:', `"${dateStr}"`)
   if (!dateStr) return new Date().toISOString().split('T')[0]
 
-  const raw = String(dateStr).trim()
+  // Remove any non-timestamp junk and trim (handling invisible chars)
+  const raw = String(dateStr).replace(/[^\x20-\x7E]/g, '').trim()
+  console.log('[DEBUG] parseDate cleaned:', `"${raw}"`)
 
-  // Already ISO-like YYYY-MM-DD
-  const isoMatch = raw.match(/^\d{4}-\d{1,2}-\d{1,2}$/)
+  // 1. Prioritize DD-MM-YYYY or DD/MM/YYYY or DD.MM.YYYY
+  // Support 2-digit or 4-digit years, and allow trailing time/text
+  const dmyMatch = raw.match(/^(\d{1,2})[^\d]+(\d{1,2})[^\d]+(\d{2,4})/)
+  if (dmyMatch) {
+    let d = parseInt(dmyMatch[1], 10)
+    let m = parseInt(dmyMatch[2], 10)
+    let y = parseInt(dmyMatch[3], 10)
+
+    // Handle 2-digit years (assume 20xx)
+    if (y < 100) y += 2000
+
+    console.log('[DEBUG] Flexible DMY Match detected:', { d, m, y })
+    // Use UTC to avoid timezone shifts
+    const dt = new Date(Date.UTC(y, m - 1, d))
+    if (!isNaN(dt.getTime())) {
+      const res = dt.toISOString().split('T')[0]
+      console.log('[DEBUG] DMY Result:', res)
+      return res
+    }
+  }
+
+  // 2. Fallback to ISO-like YYYY-MM-DD
+  const isoMatch = raw.match(/^(\d{4})[^\d]+(\d{1,2})[^\d]+(\d{1,2})$/)
   if (isoMatch) {
-    const [y, m, d] = raw.split('-').map(n => parseInt(n, 10))
+    const y = parseInt(isoMatch[1], 10)
+    const m = parseInt(isoMatch[2], 10)
+    const d = parseInt(isoMatch[3], 10)
+    console.log('[DEBUG] Flexible ISO Match detected:', { y, m, d })
     const dt = new Date(Date.UTC(y, m - 1, d))
-    if (!isNaN(dt.getTime())) return dt.toISOString().split('T')[0]
+    if (!isNaN(dt.getTime())) {
+      const res = dt.toISOString().split('T')[0]
+      console.log('[DEBUG] ISO Result:', res)
+      return res
+    }
   }
 
-  // DD/MM/YYYY or DD-MM-YYYY
-  const dmy = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/)
-  if (dmy) {
-    const d = parseInt(dmy[1], 10)
-    const m = parseInt(dmy[2], 10)
-    const y = parseInt(dmy[3], 10)
-    const dt = new Date(Date.UTC(y, m - 1, d))
-    if (!isNaN(dt.getTime())) return dt.toISOString().split('T')[0]
-  }
-
-  // MM/DD/YYYY or MM-DD-YYYY
-  const mdy = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/)
-  if (mdy) {
-    const m = parseInt(mdy[1], 10)
-    const d = parseInt(mdy[2], 10)
-    const y = parseInt(mdy[3], 10)
-    const dt = new Date(Date.UTC(y, m - 1, d))
-    if (!isNaN(dt.getTime())) return dt.toISOString().split('T')[0]
-  }
-
-  // Fallback to Date parser
+  // Fallback to standard Date parser
+  console.log('[DEBUG] Falling back to standard Date parser for:', raw)
   const date = new Date(raw)
-  return isNaN(date.getTime()) ? new Date().toISOString().split('T')[0] : date.toISOString().split('T')[0]
+  const res = isNaN(date.getTime()) ? new Date().toISOString().split('T')[0] : date.toISOString().split('T')[0]
+  console.log('[DEBUG] Fallback Result:', res)
+  return res
 }
 
 function parseNumber(val: any): number | null {

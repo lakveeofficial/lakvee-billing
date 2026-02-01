@@ -12,9 +12,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'month (YYYY-MM) is required' }, { status: 400 })
     }
 
-    // Build date range for the month
+    // Ensure bill_bookings table exists (it might not if no bills have been generated yet)
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS bill_bookings (
+        id SERIAL PRIMARY KEY,
+        bill_id INTEGER NOT NULL REFERENCES bills(id) ON DELETE CASCADE,
+        booking_type VARCHAR(20) NOT NULL CHECK (booking_type IN ('account','cash')),
+        booking_id INTEGER NOT NULL
+      )
+    `)
+
+    // Build date range for the month correctly
+    const [year, mm] = month.split('-').map(Number)
     const from = `${month}-01`
-    const to = `${month}-31`
+    const lastDay = new Date(Date.UTC(year, mm, 0)).getUTCDate()
+    const to = `${month}-${lastDay}`
 
     // Aggregate bookings by party (sender) for the month - combining account and cash bookings
     const result = await db.query(
